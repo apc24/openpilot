@@ -79,7 +79,8 @@ if __name__ == "__main__":
 
   POSITIONS = [
     (32.71569271952601, -117.16384270868463, 0), (32.71569271952601, -117.16384270868463, 45),  # San Diego
-    (52.378641991483136, 4.902623379456488, 0), (52.378641991483136, 4.902623379456488, 45),  # Amsterdam
+#    (52.378641991483136, 4.902623379456488, 0), (52.378641991483136, 4.902623379456488, 45),  # Amsterdam
+    (35.225791529696366, 138.90850031617668,0),  (35.225791529696366, 138.90850031617668,45),
   ]
   plt.figure()
 
@@ -94,3 +95,10 @@ if __name__ == "__main__":
     plt.imshow(get_image(lib, renderer), cmap='gray')
 
   plt.show()
+#debug sakayanagi
+  idx = 1
+  filename = f"map_renderer_{idx}.png"
+  while os.path.exists(filename):
+    idx += 1
+    filename = f"map_renderer_{idx}.png"
+  plt.savefig(filename)

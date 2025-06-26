@@ -5,6 +5,9 @@
 #include <QApplication>
 #include <QBuffer>
 
+//追加 by 坂柳
+#include <QImageWriter>
+
 #include "common/util.h"
 #include "common/timing.h"
 #include "common/swaglog.h"
@@ -212,6 +215,18 @@ void MapRenderer::publish(const double render_time, const bool loaded) {
   }
 
   vipc_server->send(buf, &extra);
+
+// add by 坂柳 s
+  // 画像をJPEG形式で保存
+  static int image_count = 0; // 画像の保存カウント
+  QString image_path = QString("map_image_%1.jpg").arg(image_count++);
+  if (!cap.save(image_path, "JPG", 100)) { // 100%の品質で保存
+    LOGE("Failed to save the map image to %s", image_path.toStdString().c_str());
+  } else {
+    LOG("Map image saved to %s", image_path.toStdString().c_str());
+  }
+// add by 坂柳 e
+
 
   // Send thumbnail
   if (TEST_MODE) {
