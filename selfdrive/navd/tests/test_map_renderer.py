@@ -31,10 +31,10 @@ class MapBoxInternetDisabledRequestHandler(http.server.BaseHTTPRequestHandler):
       self.end_headers()
       return
 
-    url = f'https://api.mapbox.com{self.path}'
+    url = f'https://api.maptiler.com{self.path}'
 
     headers = dict(self.headers)
-    headers["Host"] = "api.mapbox.com"
+    headers["Host"] = "api.maptiler.com"
 
     r = requests.get(url, headers=headers, timeout=5)
 
@@ -70,8 +70,8 @@ class TestMapRenderer(unittest.TestCase):
 
   @classmethod
   def setUpClass(cls):
-    assert "MAPBOX_TOKEN" in os.environ
-    cls.original_token = os.environ["MAPBOX_TOKEN"]
+    assert "MAPTILER_TOKEN" in os.environ
+    cls.original_token = os.environ["MAPTILER_TOKEN"]
     cls.server = MapBoxInternetDisabledServer()
     cls.server.start()
     time.sleep(0.5) # wait for server to startup

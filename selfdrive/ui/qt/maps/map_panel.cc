@@ -8,11 +8,11 @@
 #include "selfdrive/ui/qt/util.h"
 #include "selfdrive/ui/ui.h"
 
-MapPanel::MapPanel(const QMapLibre::Settings &mapboxSettings, QWidget *parent) : QFrame(parent) {
+MapPanel::MapPanel(const QMapLibre::Settings &maptilerSettings, QWidget *parent) : QFrame(parent) {
   content_stack = new QStackedLayout(this);
   content_stack->setContentsMargins(0, 0, 0, 0);
 
-  auto map = new MapWindow(mapboxSettings);
+  auto map = new MapWindow(maptilerSettings);
   QObject::connect(uiState(), &UIState::offroadTransition, map, &MapWindow::offroadTransition);
   QObject::connect(device(), &Device::interactiveTimeout, this, [=]() {
     content_stack->setCurrentIndex(0);

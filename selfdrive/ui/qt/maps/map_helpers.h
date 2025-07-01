@@ -13,12 +13,12 @@
 #include "common/transformations/orientation.hpp"
 #include "cereal/messaging/messaging.h"
 
-const QString MAPBOX_TOKEN = util::getenv("MAPBOX_TOKEN").c_str();
-const QString MAPS_HOST = util::getenv("MAPS_HOST", MAPBOX_TOKEN.isEmpty() ? "https://maps.comma.ai" : "https://api.mapbox.com").c_str();
+const QString MAPTILER_TOKEN = "YOUR_MAPTILER_KEY";
+const QString MAPS_HOST = util::getenv("MAPS_HOST", MAPTILER_TOKEN.isEmpty() ? "https://maps.comma.ai" : "https://api.maptiler.com").c_str();
 const QString MAPS_CACHE_PATH = "/data/mbgl-cache-navd.db";
 
-QString get_mapbox_token();
-QMapLibre::Settings get_mapbox_settings();
+QString get_maptiler_token();
+QMapLibre::Settings get_maptiler_settings();
 QGeoCoordinate to_QGeoCoordinate(const QMapLibre::Coordinate &in);
 QMapLibre::CoordinatesCollections model_to_collection(
   const cereal::LiveLocationKalman::Measurement::Reader &calibratedOrientationECEF,

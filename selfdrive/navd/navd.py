@@ -48,14 +48,14 @@ class RouteEngine:
 
     self.reroute_counter = 0
 
-    if "MAPBOX_TOKEN" in os.environ:
-      self.mapbox_token = os.environ["MAPBOX_TOKEN"]
-      self.mapbox_host = "https://api.mapbox.com"
+    if "MAPTILER_TOKEN" in os.environ:
+      self.mapbox_token = os.environ["MAPTILER_TOKEN"]
+      self.mapbox_host = "https://api.maptiler.com"
     else:
       try:
         self.mapbox_token = Api(self.params.get("DongleId", encoding='utf8')).get_token(expiry_hours=4 * 7 * 24)
       except FileNotFoundError:
-        cloudlog.exception("Failed to generate mapbox token due to missing private key. Ensure device is registered.")
+        cloudlog.exception("Failed to generate maptiler token due to missing private key. Ensure device is registered.")
         self.mapbox_token = ""
       self.mapbox_host = "https://maps.comma.ai"
 
@@ -149,7 +149,7 @@ class RouteEngine:
       params['bearings'] = f"{(self.last_bearing + 360) % 360:.0f},90" + (';'*(len(coords)-1))
 
     coords_str = ';'.join([f'{lon},{lat}' for lon, lat in coords])
-    url = self.mapbox_host + '/directions/v5/mapbox/driving-traffic/' + coords_str
+    url = self.mapbox_host + '/directions/v5/driving-traffic/' + coords_str
     try:
       resp = requests.get(url, params=params, timeout=10)
       if resp.status_code != 200:

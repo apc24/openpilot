@@ -60,7 +60,7 @@ def nav_model_replay(lr):
 
   log_msgs = []
   try:
-    assert "MAPBOX_TOKEN" in os.environ
+    assert "MAPTILER_TOKEN" in os.environ
     os.environ['MAP_RENDER_TEST_MODE'] = '1'
     Params().put_bool('DmModelInitialized', True)
     managed_processes['mapsd'].start()
@@ -149,7 +149,7 @@ if __name__ == "__main__":
     class HTTPRequestHandler(http.server.BaseHTTPRequestHandler):
       def do_GET(self):
         assert len(self.path) > 10  # Sanity check on path length
-        r = requests.get(f'https://api.mapbox.com{self.path}', timeout=30)
+        r = requests.get(f'https://api.maptiler.com{self.path}', timeout=30)
         upload_bytes(r.content, urllib.parse.urlparse(self.path).path.lstrip('/'))
         self.send_response(r.status_code)
         self.send_header('Content-type','text/html')
