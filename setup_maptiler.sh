@@ -14,10 +14,10 @@ if [ -z "$MAPTILER_TOKEN" ]; then
   echo "1. Go to https://www.maptiler.com/"
   echo "2. Sign up for a free account"
   echo "3. Go to your dashboard and copy your API key"
-  echo "4. Set it using: export MAPTILER_TOKEN=YOUR_MAPTILER_KEY"
+  echo "4. Set it using: export MAPTILER_TOKEN=APC24_MAPTILER_KEY"
   echo "5. Or add it to your ~/.bashrc file for persistence"
   echo ""
-  echo "Note: The token 'YOUR_MAPTILER_KEY' in this script is just an example!"
+  echo "Note: The token 'APC24_MAPTILER_KEY' in this script is just an example!"
   exit 1
 fi
 

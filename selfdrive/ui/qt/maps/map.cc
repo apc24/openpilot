@@ -263,7 +263,8 @@ void MapWindow::initializeGL() {
 
   m_map->setMargins({0, 350, 0, 50});
   m_map->setPitch(MIN_PITCH);
-  QString styleUrl = "file:///home/kou/sim/APC_openpilot/selfdrive/navd/style.json";
+  QString basePath = QCoreApplication::applicationDirPath();
+  QString styleUrl = "file://" + basePath + "/../../selfdrive/navd/style.json";
   m_map->setStyleUrl(styleUrl);
 
   QObject::connect(m_map.data(), &QMapLibre::Map::mapChanged, [=](QMapLibre::Map::MapChange change) {
