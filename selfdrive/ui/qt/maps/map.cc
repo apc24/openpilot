@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <eigen3/Eigen/Dense>
 
+#include <QCoreApplication>
 #include <QDebug>
 
 #include "selfdrive/ui/qt/maps/map_helpers.h"
