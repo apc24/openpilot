@@ -5,7 +5,7 @@ echo source selfdrive/navd/sw_map.sh
 SCRIPT_DIR="selfdrive/navd"
 
 
-echo -n "Which map do you use? [1:MapBox / 2:OpenStreetMap]: "
+echo -n "Which map do you use? [1:MapBox / 2:OpenStreetMap / 3:maptiler]: "
 read res
 
 case $res in
@@ -13,6 +13,14 @@ case $res in
     export MAPS_HOST='https://api.mapbox.com'
 
     cp $SCRIPT_DIR/style_mb.json $SCRIPT_DIR/style.json
+    ;;
+  2 | OpenStreetMap )
+    export MAPS_HOST='https://tile.openstreetmap.jp'
+    cp $SCRIPT_DIR/style_osm.json $SCRIPT_DIR/style.json
+    ;;
+  3 | maptiler )
+    export MAPS_HOST='https://api.maptiler.com'
+    cp $SCRIPT_DIR/style_mt.json $SCRIPT_DIR/style.json
     ;;
   * )
     export MAPS_HOST='https://tile.openstreetmap.jp'
