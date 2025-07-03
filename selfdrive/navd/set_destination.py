@@ -20,7 +20,7 @@ if __name__ == "__main__":
     print("Setting to Taco Bell")
     dest = {
       "latitude": 32.71160109904473,
-      "longitude": -117.1255656998569,
+      "longitude": -117.12556569985693,
     }
     params.put("NavDestination", json.dumps(dest))
 
