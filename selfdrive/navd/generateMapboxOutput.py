@@ -3,7 +3,7 @@ import csv
 import json
 import math
 SPD = 30 #[km/h] vehicle speed
-CSVFILE = 'selfdrive/navd/route.csv'
+CSVFILE = 'selfdrive/navd/route.txt'
 
 def load_csv(file_path):
     with open(file_path, mode='r', encoding='utf-8') as file:
