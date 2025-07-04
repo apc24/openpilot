@@ -13,7 +13,7 @@ What is openpilot?
   </tr>
 </table>
 
-To start using openpilot in a car
+To start using openpilot in a car.
 ------
 
 To use openpilot in a car, you need four things:

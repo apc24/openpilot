@@ -11,23 +11,21 @@
 #include "system/hardware/hw.h"
 #include "selfdrive/ui/qt/api.h"
 
-QString get_maptiler_token() {
+QString get_mapbox_token() {
   // Valid for 4 weeks since we can't swap tokens on the fly
-  return MAPTILER_TOKEN.isEmpty() ? CommaApi::create_jwt({}, 4 * 7 * 24 * 3600) : MAPTILER_TOKEN;
+  return MAPBOX_TOKEN.isEmpty() ? CommaApi::create_jwt({}, 4 * 7 * 24 * 3600) : MAPBOX_TOKEN;
 }
 
-QMapLibre::Settings get_maptiler_settings() {
+QMapLibre::Settings get_mapbox_settings() {
   QMapLibre::Settings settings;
-  // Force MapTiler provider for UI maps
-  settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapTilerProvider);
+  settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapboxProvider);
 
   if (!Hardware::PC()) {
     settings.setCacheDatabasePath(MAPS_CACHE_PATH);
     settings.setCacheDatabaseMaximumSize(100 * 1024 * 1024);
   }
-  // Force MapTiler API base URL
-  settings.setApiBaseUrl("https://api.maptiler.com");
-  settings.setApiKey(get_maptiler_token());
+  settings.setApiBaseUrl(MAPS_HOST);
+  settings.setApiKey(get_mapbox_token());
 
   return settings;
 }

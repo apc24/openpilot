@@ -17,9 +17,6 @@ from openpilot.selfdrive.navd.helpers import (Coordinate, coordinate_from_param,
                                     parse_banner_instructions)
 from openpilot.common.swaglog import cloudlog
 
-# modified by sakayanagi
-from openpilot.selfdrive.navd.generateMapboxOutput import genMapboxJson
-
 REROUTE_DISTANCE = 25
 MANEUVER_TRANSITION_THRESHOLD = 10
 REROUTE_COUNTER_MIN = 3
@@ -51,18 +48,16 @@ class RouteEngine:
 
     self.reroute_counter = 0
 
-    # Force Mapbox usage for navd.py
     if "MAPBOX_TOKEN" in os.environ:
       self.mapbox_token = os.environ["MAPBOX_TOKEN"]
       self.mapbox_host = "https://api.mapbox.com"
     else:
-      # Force using Mapbox even without token for navd.py
-      self.mapbox_host = "https://api.mapbox.com"
       try:
         self.mapbox_token = Api(self.params.get("DongleId", encoding='utf8')).get_token(expiry_hours=4 * 7 * 24)
       except FileNotFoundError:
         cloudlog.exception("Failed to generate mapbox token due to missing private key. Ensure device is registered.")
         self.mapbox_token = ""
+      self.mapbox_host = "https://maps.comma.ai"
 
   def update(self):
     self.sm.update(0)
@@ -154,20 +149,14 @@ class RouteEngine:
       params['bearings'] = f"{(self.last_bearing + 360) % 360:.0f},90" + (';'*(len(coords)-1))
 
     coords_str = ';'.join([f'{lon},{lat}' for lon, lat in coords])
-    url = self.mapbox_host + '/directions/v5/driving-traffic/' + coords_str
+    url = self.mapbox_host + '/directions/v5/mapbox/driving-traffic/' + coords_str
     try:
-      # modified by sakayanagi
-      if os.getenv('LOADCSVMAP') == 'TRUE':
-        r = genMapboxJson({'lon': self.last_position.longitude, 'lat': self.last_position.latitude})
-      else:
+      resp = requests.get(url, params=params, timeout=10)
+      if resp.status_code != 200:
+        cloudlog.event("API request failed", status_code=resp.status_code, text=resp.text, error=True)
+      resp.raise_for_status()
 
-        resp = requests.get(url, params=params, timeout=10)
-        if resp.status_code != 200:
-          cloudlog.event("API request failed", status_code=resp.status_code, text=resp.text, error=True)
-        resp.raise_for_status()
-
-        r = resp.json()
-
+      r = resp.json()
       if len(r['routes']):
         self.route = r['routes'][0]['legs'][0]['steps']
         self.route_geometry = []
