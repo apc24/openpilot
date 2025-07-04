@@ -14,7 +14,8 @@
 #include "cereal/messaging/messaging.h"
 
 const QString MAPTILER_TOKEN = "APC24_MAPTILER_KEY";
-const QString MAPS_HOST = util::getenv("MAPS_HOST", MAPTILER_TOKEN.isEmpty() ? "https://maps.comma.ai" : "https://api.maptiler.com").c_str();
+// Force MapTiler host for UI maps
+const QString MAPS_HOST = "https://api.maptiler.com";
 const QString MAPS_CACHE_PATH = "/data/mbgl-cache-navd.db";
 
 QString get_maptiler_token();

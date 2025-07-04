@@ -9,6 +9,7 @@
 #include "common/timing.h"
 #include "common/swaglog.h"
 #include "selfdrive/ui/qt/maps/map_helpers.h"
+#include "selfdrive/ui/qt/api.h"
 
 const float DEFAULT_ZOOM = 13.5; // Don't go below 13 or features will start to disappear
 const int HEIGHT = 256, WIDTH = 256;
@@ -60,7 +61,14 @@ MapRenderer::MapRenderer(const QMapLibre::Settings &settings, bool online) : m_s
   fbo.reset(new QOpenGLFramebufferObject(WIDTH, HEIGHT, fbo_format));
 
   std::string style = util::read_file(STYLE_PATH);
-  m_map.reset(new QMapLibre::Map(nullptr, m_settings, fbo->size(), 1));
+  // Force MapTiler settings for map_renderer
+  QMapLibre::Settings maptiler_settings;
+  maptiler_settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapTilerProvider);
+  maptiler_settings.setApiBaseUrl("https://api.maptiler.com");
+  if (const char* token = getenv("MAPTILER_TOKEN")) {
+    maptiler_settings.setApiKey(token);
+  }
+  m_map.reset(new QMapLibre::Map(nullptr, maptiler_settings, fbo->size(), 1));
   m_map->setCoordinateZoom(QMapLibre::Coordinate(0, 0), DEFAULT_ZOOM);
   m_map->setStyleJson(style.c_str());
   m_map->createRenderer();
@@ -297,8 +305,14 @@ extern "C" {
 
     QMapLibre::Settings settings;
     settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapTilerProvider);
-    settings.setApiBaseUrl(maps_host == nullptr ? MAPS_HOST : maps_host);
-    settings.setApiKey(token == nullptr ? get_maptiler_token() : token);
+    settings.setApiBaseUrl(maps_host == nullptr ? "https://api.maptiler.com" : maps_host);
+    if (token != nullptr) {
+      settings.setApiKey(QString::fromUtf8(token));
+    } else {
+      // Use MapTiler token from global definition
+      QString maptiler_token = MAPTILER_TOKEN.isEmpty() ? CommaApi::create_jwt({}, 4 * 7 * 24 * 3600) : MAPTILER_TOKEN;
+      settings.setApiKey(maptiler_token);
+    }
 
     return new MapRenderer(settings, false);
   }
