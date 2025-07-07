@@ -152,7 +152,7 @@ class RouteEngine:
       params['bearings'] = f"{(self.last_bearing + 360) % 360:.0f},90" + (';'*(len(coords)-1))
 
     coords_str = ';'.join([f'{lon},{lat}' for lon, lat in coords])
-    url = self.mapbox_host + '/directions/v5/driving-traffic/' + coords_str
+    url = self.mapbox_host + '/directions/v5/mapbox/driving-traffic/' + coords_str
     try:
       # modified by sakayanagi
       if os.getenv('LOADCSVMAP') == 'TRUE':
