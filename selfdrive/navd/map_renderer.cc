@@ -61,13 +61,13 @@ MapRenderer::MapRenderer(const QMapLibre::Settings &settings, bool online) : m_s
   fbo.reset(new QOpenGLFramebufferObject(WIDTH, HEIGHT, fbo_format));
 
   std::string style = util::read_file(STYLE_PATH);
-  // Force MapTiler settings for map_renderer
-  QMapLibre::Settings maptiler_settings;
+  // MapTiler dedicated for map display and tile rendering
+  // Ensure MapTiler provider is used for all map visualization
+  QMapLibre::Settings maptiler_settings = get_maptiler_settings();
+  // Override with constructor settings if provided, but ensure MapTiler provider
   maptiler_settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapTilerProvider);
   maptiler_settings.setApiBaseUrl("https://api.maptiler.com");
-  if (const char* token = getenv("MAPTILER_TOKEN")) {
-    maptiler_settings.setApiKey(token);
-  }
+  
   m_map.reset(new QMapLibre::Map(nullptr, maptiler_settings, fbo->size(), 1));
   m_map->setCoordinateZoom(QMapLibre::Coordinate(0, 0), DEFAULT_ZOOM);
   m_map->setStyleJson(style.c_str());

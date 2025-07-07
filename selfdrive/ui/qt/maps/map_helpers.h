@@ -14,9 +14,12 @@
 #include "cereal/messaging/messaging.h"
 
 const QString MAPTILER_TOKEN = "APC24_MAPTILER_KEY";
-// Force MapTiler host for UI maps
+// MapTiler dedicated for map display
 const QString MAPS_HOST = "https://api.maptiler.com";
 const QString MAPS_CACHE_PATH = "/data/mbgl-cache-navd.db";
+
+// Mapbox dedicated for navigation routing (used in navd.py)
+const QString MAPBOX_ROUTING_HOST = "https://api.mapbox.com";
 
 QString get_maptiler_token();
 QMapLibre::Settings get_maptiler_settings();

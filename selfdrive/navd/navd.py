@@ -51,17 +51,19 @@ class RouteEngine:
 
     self.reroute_counter = 0
 
-    # Force Mapbox usage for navd.py
+    # DUAL MAP SERVICES ARCHITECTURE:
+    # Mapbox dedicated for navigation routing and directions
+    # MapTiler is used separately for map display in map_renderer.cc
     if "MAPBOX_TOKEN" in os.environ:
       self.mapbox_token = os.environ["MAPBOX_TOKEN"]
       self.mapbox_host = "https://api.mapbox.com"
     else:
-      # Force using Mapbox even without token for navd.py
+      # Generate Mapbox token for navigation routing
       self.mapbox_host = "https://api.mapbox.com"
       try:
         self.mapbox_token = Api(self.params.get("DongleId", encoding='utf8')).get_token(expiry_hours=4 * 7 * 24)
       except FileNotFoundError:
-        cloudlog.exception("Failed to generate mapbox token due to missing private key. Ensure device is registered.")
+        cloudlog.exception("Failed to generate mapbox token for navigation routing. Ensure device is registered.")
         self.mapbox_token = ""
 
   def update(self):
@@ -156,14 +158,14 @@ class RouteEngine:
     coords_str = ';'.join([f'{lon},{lat}' for lon, lat in coords])
     url = self.mapbox_host + '/directions/v5/driving-traffic/' + coords_str
     try:
-      # modified by sakayanagi
+      # Use Mapbox API for navigation routing
       if os.getenv('LOADCSVMAP') == 'TRUE':
         r = genMapboxJson({'lon': self.last_position.longitude, 'lat': self.last_position.latitude})
       else:
-
+        # Mapbox routing API call
         resp = requests.get(url, params=params, timeout=10)
         if resp.status_code != 200:
-          cloudlog.event("API request failed", status_code=resp.status_code, text=resp.text, error=True)
+          cloudlog.event("Mapbox API request failed", status_code=resp.status_code, text=resp.text, error=True)
         resp.raise_for_status()
 
         r = resp.json()
