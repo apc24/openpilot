@@ -10,11 +10,11 @@ def load_csv(file_path):
         reader = csv.DictReader(file)
         points = []
         for row in reader:
-            long = float(row['long'])
+            lon = float(row['lon'])
             lat = float(row['lat'])
             type_ = row['type']
             modifier = row['modifier']
-            points.append((long, lat, type_, modifier))
+            points.append((lon, lat, type_, modifier))
         return points
 def generate_mapbox_output(points, start_index=0):
     routes = {
@@ -35,6 +35,8 @@ def generate_mapbox_output(points, start_index=0):
         coordinates.append([current[0],current[1]])
 
         if current[3] != "st":
+#            print("coordinates")
+#            print(coordinates)
             distance = calculate_distance(coordinates)
             spd = SPD
             duration = distance / (spd * 1000 / 3600)
@@ -93,8 +95,11 @@ def generate_mapbox_output(points, start_index=0):
 
 EARTH_RAD = 6378137
 def cal_distance(lon1, lat1, lon2, lat2):
-   return EARTH_RAD * math.acos( math.sin(math.radians(lat1))*math.sin(math.radians(lat2)) + \
-          math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.cos(math.radians(lon2-lon1)))
+   th = math.sin(math.radians(lat1))*math.sin(math.radians(lat2)) + \
+        math.cos(math.radians(lat1))*math.cos(math.radians(lat2))*math.cos(math.radians(lon2-lon1))
+   th = min(1.0,max(-1.0,th))
+
+   return EARTH_RAD * math.acos(th)
 
 # reference: https://qiita.com/Yuzu2yan/items/0f312954feeb3c83c70e
 #    return json.dumps(routes, ensure_ascii=False, indent=2)
@@ -110,18 +115,27 @@ from openpilot.selfdrive.navd.nearestLink import nearestLink
 
 def genMapboxJson(pos):
     points = load_csv(CSVFILE)
-    print("points:")
-    print(points)
+#    print("points:")
+#    print(points)
     mat = np.zeros([len(points),2])
     for idx in range(len(points)):
         mat[idx,:]=np.array([points[idx][0],points[idx][1]])
 
     p0 = np.array([[pos['lon'], pos['lat']]])
+#    print(f"p0:{p0}")
+#    print("mat")
+#    print(mat)
+
     [p,idx]=nearestLink(mat,p0)
+#    print(f"p:{p}")
+#    print(f"idx:{idx}")
+
     # 自車位置以降の出力を生成
     points = points[(idx+1):]
     point0 = (float(p[0]),float(p[1]),'st','st')
     points.insert(0,point0)
+#    print("new points")
+#    print(points)
     output = generate_mapbox_output(points)
     return output
 
@@ -134,8 +148,8 @@ if __name__ == "__main__":
 #            mat[idx,:]=np.array([points[idx][0],points[idx][1]])
 #        pos = {'lon': mat[3,0], 'lat': mat[3,1]}
         pos = {'lon': points[0][0], 'lat': points[0][1]}
-        print("自車位置")
-        print(pos)
+#        print("自車位置")
+#        print(pos)
         output = genMapboxJson(pos)
 
 #        print(mat)
