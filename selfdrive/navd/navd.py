@@ -27,6 +27,10 @@ REROUTE_COUNTER_MIN = 3
 
 class RouteEngine:
   def __init__(self, sm, pm):
+    cloudlog.warning("warning: RouteEngine initialized Sakayanagi")
+    cloudlog.info("info: RouteEngine initialized Sakayanagi")
+    cloudlog.debug("debug: RouteEngine initialized Sakayanagi") 
+    cloudlog.error("error: RouteEngine initialized Sakayanagi")
     self.sm = sm
     self.pm = pm
 
@@ -63,6 +67,7 @@ class RouteEngine:
       self.mapbox_host = "https://maps.comma.ai"
 
   def update(self):
+    cloudlog.debug("navd.update Sakayanagi")
     self.sm.update(0)
 
     if self.sm.updated["managerState"]:
@@ -81,6 +86,7 @@ class RouteEngine:
       cloudlog.exception("navd.failed_to_compute")
 
   def update_location(self):
+    cloudlog.debug("navd.update_location Sakayanagi")
     location = self.sm['liveLocationKalman']
     self.gps_ok = location.gpsOK
 
@@ -91,6 +97,7 @@ class RouteEngine:
       self.last_position = Coordinate(location.positionGeodetic.value[0], location.positionGeodetic.value[1])
 
   def recompute_route(self):
+    cloudlog.debug("navd.recompute_route Sakayanagi")
     if self.last_position is None:
       return
 
@@ -118,6 +125,7 @@ class RouteEngine:
       self.recompute_countdown = max(0, self.recompute_countdown - 1)
 
   def calculate_route(self, destination):
+    cloudlog.debug(f"navd.calculate_route Sakayanagi: {self.last_position} -> {destination}")
     cloudlog.warning(f"Calculating route {self.last_position} -> {destination}")
     self.nav_destination = destination
 
@@ -208,6 +216,7 @@ class RouteEngine:
     self.send_route()
 
   def send_instruction(self):
+    cloudlog.debug("navd.send_instruction Sakayanagi")
     msg = messaging.new_message('navInstruction', valid=True)
 
     if self.step_idx is None:
@@ -311,6 +320,7 @@ class RouteEngine:
           self.clear_route()
 
   def send_route(self):
+    cloudlog.debug("navd.send_route Sakayanagi")
     coords = []
 
     if self.route is not None:
@@ -322,16 +332,19 @@ class RouteEngine:
     self.pm.send('navRoute', msg)
 
   def clear_route(self):
+    cloudlog.debug("navd.clear_route Sakayanagi")
     self.route = None
     self.route_geometry = None
     self.step_idx = None
     self.nav_destination = None
 
   def reset_recompute_limits(self):
+    cloudlog.debug("navd.reset_recompute_limits Sakayanagi")
     self.recompute_backoff = 0
     self.recompute_countdown = 0
 
   def should_recompute(self):
+    cloudlog.debug("navd.should_recompute Sakayanagi")
     if self.step_idx is None or self.route is None:
       return True
 
@@ -360,6 +373,7 @@ class RouteEngine:
 
 
 def main():
+  cloudlog.info("navd started Sakayanagi")
   pm = messaging.PubMaster(['navInstruction', 'navRoute'])
   sm = messaging.SubMaster(['liveLocationKalman', 'managerState'])
 
