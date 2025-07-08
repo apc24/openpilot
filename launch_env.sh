@@ -12,8 +12,6 @@ fi
 
 export STAGING_ROOT="/data/safe_staging"
 
-export LOADCSVMAP="TRUE"
-
 # 実行中のスクリプトがsourceされた場合でも正しいパスを取得
 script_dir=$(dirname "$(realpath "${BASH_SOURCE[0]}")")
 

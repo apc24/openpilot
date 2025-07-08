@@ -12,7 +12,7 @@ SPD = 30 #[km/h] vehicle speed
 #CSVFILE = 'selfdrive/navd/route.txt'
 CSVFILE = 'route.txt'
 
-def load_csv(file_path: str) -> List[Tuple[float, float, str, str]]:
+def load_csv(file_path: str) -> List[Tuple[float, float, str, str, float]]:
     """
     Load points from a CSV file.
     Args:
@@ -32,28 +32,35 @@ def load_csv(file_path: str) -> List[Tuple[float, float, str, str]]:
                 lat = float(row['lat'])
                 type_ = row['type']
                 modifier = row['modifier']
-                points.append((lon, lat, type_, modifier))
+                maxspeed = float(row['maxspeed'])
+                points.append((lon, lat, type_, modifier, maxspeed))
             return points
     except Exception as e:
         cloudlog.error(f"load_csv error: {e}")
         return points
 
-def generate_mapbox_output(points: List[Tuple[float, float, str, str]], start_index: int = 0) -> dict:
+def generate_mapbox_output(points: List[Tuple[float, float, str, str, float]], start_index: int = 0) -> dict:
     """
     Generate a Mapbox JSON output from a list of points.
     Args:
-        points (list): List of tuples containing longitude, latitude, type, and modifier.
+        points (list): List of tuples containing longitude, latitude, type, modifier and maxspeed.
         start_index (int): Index to start processing points from.
     Returns:
         dict: A dictionary representing the Mapbox JSON output.
     """
 
     steps: List[Dict] = []
+    maxspeed: List[Dict] = []
     coordinates: List[List[float]] = []
 
     for i in range(start_index, len(points)):
         current = points[i]
         coordinates.append([current[0], current[1]])
+        t_mxspd = current[4]
+        if t_mxspd < 0:
+            maxspeed.append({"unknown": True})
+        else:
+            maxspeed.append({"speed": t_mxspd, "unit": "km/h"})
 
         if current[3] != "st":
             distance = calculate_distance(coordinates)
@@ -88,7 +95,8 @@ def generate_mapbox_output(points: List[Tuple[float, float, str, str]], start_in
         "routes": [{
             "legs": [{
                 "annotation": {
-                    "maxspeed": [{"unknown": True}] * len(points[start_index:])
+#                    "maxspeed": [{"unknown": True}] * len(points[start_index:])
+                    "maxspeed": maxspeed,
                 },
                 "steps": steps
             }]
@@ -157,8 +165,9 @@ def genMapboxJson(pos: dict[str, float]) -> dict:
 
     [p,idx]=nearestLink(mat,p0)
 
+    maxspeed0 = points[idx][4]
     points = points[(idx+1):]
-    point0 = (float(p[0]),float(p[1]),'st','st')
+    point0 = (float(p[0]),float(p[1]),'st','st',maxspeed0)
     points.insert(0,point0)
     output = generate_mapbox_output(points)
     return output
@@ -190,19 +199,17 @@ def checkDestination(pos: dict[str, float]) -> bool:
 
 
 if __name__ == "__main__":
-#    if os.getenv('LOADCSVMAP') == 'TRUE':
     # スクリプトの絶対パスを取得
     script_dir = os.path.dirname(os.path.realpath(__file__))
 
     # 読み込みたいファイルの相対パスを指定
     file_path = os.path.join(script_dir, CSVFILE)
- #   csv_file_path = CSVFILE  # path of CSV file
     points = load_csv(file_path)
     pos = {'lon': points[0][0], 'lat': points[0][1]}
     output = genMapboxJson(pos)
     print(json.dumps(output, ensure_ascii=False, indent=2))
 
-#    目的地チェック
+    # 目的地チェック
     pos = {'lon': points[-1][0], 'lat': points[-1][1]}
     if checkDestination(pos):
         print("OK")
