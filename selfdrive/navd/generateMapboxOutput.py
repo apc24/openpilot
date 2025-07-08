@@ -191,8 +191,13 @@ def checkDestination(pos: dict[str, float]) -> bool:
 
 if __name__ == "__main__":
 #    if os.getenv('LOADCSVMAP') == 'TRUE':
-    csv_file_path = CSVFILE  # path of CSV file
-    points = load_csv(csv_file_path)
+    # スクリプトの絶対パスを取得
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+
+    # 読み込みたいファイルの相対パスを指定
+    file_path = os.path.join(script_dir, CSVFILE)
+ #   csv_file_path = CSVFILE  # path of CSV file
+    points = load_csv(file_path)
     pos = {'lon': points[0][0], 'lat': points[0][1]}
     output = genMapboxJson(pos)
     print(json.dumps(output, ensure_ascii=False, indent=2))
