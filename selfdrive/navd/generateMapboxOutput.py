@@ -1,4 +1,4 @@
-#import os
+import os
 import csv
 import json
 import math
@@ -9,7 +9,8 @@ from openpilot.selfdrive.navd.nearestLink import nearestLink
 
 
 SPD = 30 #[km/h] vehicle speed
-CSVFILE = 'selfdrive/navd/route.txt'
+#CSVFILE = 'selfdrive/navd/route.txt'
+CSVFILE = 'route.txt'
 
 def load_csv(file_path: str) -> List[Tuple[float, float, str, str]]:
     """
@@ -141,7 +142,13 @@ def genMapboxJson(pos: dict[str, float]) -> dict:
         cloudlog.error("genMapboxJson error: 'lon'または'lat'がposに存在しません")
         return {}
 
-    points = load_csv(CSVFILE)
+    # スクリプトの絶対パスを取得
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+
+    # 読み込みたいファイルの相対パスを指定
+    file_path = os.path.join(script_dir, CSVFILE)
+
+    points = load_csv(file_path)
     mat = np.zeros([len(points),2])
     for idx in range(len(points)):
         mat[idx,:]=np.array([points[idx][0],points[idx][1]])
@@ -156,6 +163,32 @@ def genMapboxJson(pos: dict[str, float]) -> dict:
     output = generate_mapbox_output(points)
     return output
 
+def checkDestination(pos: dict[str, float]) -> bool:
+    """
+    Check if the destination is equal to the list.
+    Args:
+        pos (dict): A dictionary containing 'lon' and 'lat' keys for the current position.
+    Returns:
+        bool: True if the position is close to the destination, False otherwise.
+    """
+    if 'lon' not in pos or 'lat' not in pos:
+        cloudlog.error("checkDestination error: 'lon'または'lat'がposに存在しません")
+        return False
+
+    # スクリプトの絶対パスを取得
+    script_dir = os.path.dirname(os.path.realpath(__file__))
+
+    # 読み込みたいファイルの相対パスを指定
+    file_path = os.path.join(script_dir, CSVFILE)
+
+    points = load_csv(file_path)
+
+    if points[-1][0] == pos['lon'] and points[-1][1] == pos['lat']:
+        return True
+    else:
+        return False
+
+
 if __name__ == "__main__":
 #    if os.getenv('LOADCSVMAP') == 'TRUE':
     csv_file_path = CSVFILE  # path of CSV file
@@ -164,3 +197,9 @@ if __name__ == "__main__":
     output = genMapboxJson(pos)
     print(json.dumps(output, ensure_ascii=False, indent=2))
 
+#    目的地チェック
+    pos = {'lon': points[-1][0], 'lat': points[-1][1]}
+    if checkDestination(pos):
+        print("OK")
+    else:
+        print("NG")

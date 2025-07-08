@@ -88,3 +88,5 @@ build/
 
 poetry.toml
 Pipfile
+
+setAPIKey.sh
