@@ -88,15 +88,13 @@ def generate_mapbox_output(points: List[Tuple[float, float, str, str, float]], s
                 "geometry": {"coordinates": coordinates}
             }
             steps.append(step)
-#            routes["routes"][0]["legs"][0]["steps"].append(step)
             coordinates = [[current[0], current[1]]]
 
     routes = {
         "routes": [{
             "legs": [{
                 "annotation": {
-#                    "maxspeed": [{"unknown": True}] * len(points[start_index:])
-                    "maxspeed": maxspeed,
+                    "maxspeed": maxspeed,  # MAPBOXのmaxpeedは最初の8個しかないが、困らないはずなので全部入れる
                 },
                 "steps": steps
             }]
