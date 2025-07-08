@@ -18,15 +18,13 @@ QString get_maptiler_token() {
 
 QMapLibre::Settings get_maptiler_settings() {
   QMapLibre::Settings settings;
-  // MapTiler dedicated for map display
   settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapTilerProvider);
 
   if (!Hardware::PC()) {
     settings.setCacheDatabasePath(MAPS_CACHE_PATH);
     settings.setCacheDatabaseMaximumSize(100 * 1024 * 1024);
   }
-  // MapTiler API configuration for map display
-  settings.setApiBaseUrl("https://api.maptiler.com");
+  settings.setApiBaseUrl(MAPS_HOST);
   settings.setApiKey(get_maptiler_token());
 
   return settings;

@@ -22,16 +22,8 @@ int main(int argc, char *argv[]) {
   std::signal(SIGINT, sigTermHandler);
   std::signal(SIGTERM, sigTermHandler);
 
-  // DUAL MAP SERVICES ARCHITECTURE:
-  // 1. MapTiler: Used for map display/rendering (this process)
-  // 2. Mapbox: Used for navigation routing (handled by navd.py process)
-  
-  // MapTiler for map display and tile rendering
   MapRenderer * m = new MapRenderer(get_maptiler_settings());
   assert(m);
-
-  // Note: Mapbox routing is handled separately by navd.py process
-  // Both services coexist to provide complete navigation functionality
 
   return app.exec();
 }

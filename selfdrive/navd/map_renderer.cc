@@ -5,11 +5,13 @@
 #include <QApplication>
 #include <QBuffer>
 
+//追加 by 坂柳
+#include <QImageWriter>
+
 #include "common/util.h"
 #include "common/timing.h"
 #include "common/swaglog.h"
 #include "selfdrive/ui/qt/maps/map_helpers.h"
-#include "selfdrive/ui/qt/api.h"
 
 const float DEFAULT_ZOOM = 13.5; // Don't go below 13 or features will start to disappear
 const int HEIGHT = 256, WIDTH = 256;
@@ -61,14 +63,7 @@ MapRenderer::MapRenderer(const QMapLibre::Settings &settings, bool online) : m_s
   fbo.reset(new QOpenGLFramebufferObject(WIDTH, HEIGHT, fbo_format));
 
   std::string style = util::read_file(STYLE_PATH);
-  // MapTiler dedicated for map display and tile rendering
-  // Ensure MapTiler provider is used for all map visualization
-  QMapLibre::Settings maptiler_settings = get_maptiler_settings();
-  // Override with constructor settings if provided, but ensure MapTiler provider
-  maptiler_settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapTilerProvider);
-  maptiler_settings.setApiBaseUrl("https://api.maptiler.com");
-  
-  m_map.reset(new QMapLibre::Map(nullptr, maptiler_settings, fbo->size(), 1));
+  m_map.reset(new QMapLibre::Map(nullptr, m_settings, fbo->size(), 1));
   m_map->setCoordinateZoom(QMapLibre::Coordinate(0, 0), DEFAULT_ZOOM);
   m_map->setStyleJson(style.c_str());
   m_map->createRenderer();
@@ -221,6 +216,18 @@ void MapRenderer::publish(const double render_time, const bool loaded) {
 
   vipc_server->send(buf, &extra);
 
+// add by 坂柳 s
+  // 画像をJPEG形式で保存
+  static int image_count = 0; // 画像の保存カウント
+  QString image_path = QString("map_image_%1.jpg").arg(image_count++);
+  if (!cap.save(image_path, "JPG", 100)) { // 100%の品質で保存
+    LOGE("Failed to save the map image to %s", image_path.toStdString().c_str());
+  } else {
+    LOG("Map image saved to %s", image_path.toStdString().c_str());
+  }
+// add by 坂柳 e
+
+
   // Send thumbnail
   if (TEST_MODE) {
     // Full image in thumbnails in test mode
@@ -305,14 +312,8 @@ extern "C" {
 
     QMapLibre::Settings settings;
     settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapTilerProvider);
-    settings.setApiBaseUrl(maps_host == nullptr ? "https://api.maptiler.com" : maps_host);
-    if (token != nullptr) {
-      settings.setApiKey(QString::fromUtf8(token));
-    } else {
-      // Use MapTiler token from global definition
-      QString maptiler_token = MAPTILER_TOKEN.isEmpty() ? CommaApi::create_jwt({}, 4 * 7 * 24 * 3600) : MAPTILER_TOKEN;
-      settings.setApiKey(maptiler_token);
-    }
+    settings.setApiBaseUrl(maps_host == nullptr ? MAPS_HOST : maps_host);
+    settings.setApiKey(token == nullptr ? get_maptiler_token() : token);
 
     return new MapRenderer(settings, false);
   }
