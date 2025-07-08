@@ -63,7 +63,6 @@ class RouteEngine:
       self.mapbox_host = "https://maps.comma.ai"
 
   def update(self):
-    cloudlog.debug("navd.update Sakayanagi")
     self.sm.update(0)
 
     if self.sm.updated["managerState"]:
@@ -119,6 +118,7 @@ class RouteEngine:
       self.recompute_countdown = max(0, self.recompute_countdown - 1)
 
   def calculate_route(self, destination):
+    cloudlog.warning(f"Calculating route {self.last_position} -> {destination}")
     self.nav_destination = destination
 
     lang = self.params.get('LanguageSetting', encoding='utf8')
