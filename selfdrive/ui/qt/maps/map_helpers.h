@@ -14,11 +14,15 @@
 #include "cereal/messaging/messaging.h"
 
 const QString MAPBOX_TOKEN = util::getenv("MAPBOX_TOKEN").c_str();
+const QString MAPTILER_TOKEN = util::getenv("MAPTILER_TOKEN").c_str(); // added for MapTiler support
 const QString MAPS_HOST = util::getenv("MAPS_HOST", MAPBOX_TOKEN.isEmpty() ? "https://maps.comma.ai" : "https://api.mapbox.com").c_str();
+const QString MAPTILER_HOST = util::getenv("MAPTILER_HOST", "https://api.maptiler.com").c_str(); // added for MapTiler support
 const QString MAPS_CACHE_PATH = "/data/mbgl-cache-navd.db";
 
 QString get_mapbox_token();
+QString get_maptiler_token(); // added for MapTiler support
 QMapLibre::Settings get_mapbox_settings();
+QMapLibre::Settings get_maptiler_settings(); // added for MapTiler support
 QGeoCoordinate to_QGeoCoordinate(const QMapLibre::Coordinate &in);
 QMapLibre::CoordinatesCollections model_to_collection(
   const cereal::LiveLocationKalman::Measurement::Reader &calibratedOrientationECEF,
