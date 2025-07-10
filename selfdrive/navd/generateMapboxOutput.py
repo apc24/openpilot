@@ -71,7 +71,7 @@ def generate_mapbox_output(points: List[Tuple[float, float, str, str, float]], s
             if type_ == "arrive":
                 text = f"Your destination is one the {modifier}"
             else:
-                text = f"Turn {type_}"
+                text = f"Turn {modifier}"
             step = {
                 "bannerInstructions": [{
                     "primary": {
