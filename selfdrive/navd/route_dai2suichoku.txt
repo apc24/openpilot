@@ -1,4 +1,4 @@
-long,lat,type,modifier,maxspeed
+lon,lat,type,modifier,maxspeed
 138.9077339,35.2277781,st,st,-1
 138.9076776,35.2276971,st,st,-1
 138.9075542,35.2276675,left,left,-1

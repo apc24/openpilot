@@ -190,6 +190,12 @@ def checkDestination(pos: dict[str, float]) -> bool:
 
     points = load_csv(file_path)
 
+    # pointsが空でないか確認
+    if not points:
+        cloudlog.error("checkDestination error: points is empty")
+        return False
+
+    # 最後のポイントが目的地と一致するか確認
     if points[-1][0] == pos['lon'] and points[-1][1] == pos['lat']:
         return True
     else:
