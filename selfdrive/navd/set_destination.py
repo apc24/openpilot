@@ -36,12 +36,19 @@ if __name__ == "__main__":
   #    "place_name": "HOME",
   #    "place_details": "19-3, Sankei-Dai, Mishima-shi, Susono"
   #  }
-    print("三恵台公園")
+  #  print("三恵台公園")
+  #  dest = {
+  #    "latitude": 35.1295238,
+  #    "longitude": 138.9400952,
+  #    "place_name": "三恵台公園",
+  #    "place_details": "19-3, Sankei-Dai, Mishima-shi, Susono"
+  #  }
+    print("第３週回路")
     dest = {
-      "latitude": 35.1295238,
-      "longitude": 138.9400952,
-      "place_name": "三恵台公園",
-      "place_details": "19-3, Sankei-Dai, Mishima-shi, Susono"
+      "latitude": 35.2303444,
+      "longitude": 138.8902247,
+  #    "place_name": "Test course No.3" ,
+  #    "place_details": "1200, Mishuku, Susono , Shizuoka"
     }
 
     params.put("NavDestination", json.dumps(dest))
