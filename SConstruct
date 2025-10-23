@@ -186,8 +186,10 @@ env = Environment(
     "-fPIC",
     "-O2",
     "-Wunused",
-    "-Werror",
+    # Ubuntu24でエラーが出るためコメントアウト
+    # "-Werror",
     "-Wshadow",
+    "-Wno-vla-cxx-extension",   #Ubuntu24でエラーが出るため追加
     "-Wno-unknown-warning-option",
     "-Wno-deprecated-register",
     "-Wno-register",
@@ -266,7 +268,10 @@ py_include = sysconfig.get_paths()['include']
 envCython = env.Clone()
 envCython["CPPPATH"] += [py_include, np.get_include()]
 envCython["CCFLAGS"] += ["-Wno-#warnings", "-Wno-shadow", "-Wno-deprecated-declarations"]
-envCython["CCFLAGS"].remove("-Werror")
+# Ubuntu24でエラーが出るため修正
+#envCython["CCFLAGS"].remove("-Werror")
+if "-Werror" in envCython["CCFLAGS"]:
+  envCython["CCFLAGS"].remove("-Werror")
 
 envCython["LIBS"] = []
 if arch == "Darwin":

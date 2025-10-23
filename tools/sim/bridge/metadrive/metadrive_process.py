@@ -59,6 +59,12 @@ def metadrive_process(dual_camera: bool, config: dict, camera_array, wide_camera
   def reset():
     env.reset()
     env.vehicle.config["max_speed_km_h"] = 1000
+    # Set initial speed - can be controlled via environment variable
+    import os
+    initial_speed_kmh = float(os.getenv('METADRIVE_INITIAL_SPEED_KMH', '20.0'))
+    initial_speed_ms = initial_speed_kmh / 3.6  # Convert km/h to m/s
+    env.vehicle.set_velocity([initial_speed_ms, 0])  # Forward velocity
+    print(f"MetaDrive: Set initial speed to {initial_speed_kmh} km/h ({initial_speed_ms:.2f} m/s)")
 
   reset()
 

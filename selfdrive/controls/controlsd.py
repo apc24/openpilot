@@ -174,7 +174,7 @@ class Controls:
     self.sm = messaging.SubMaster(['deviceState', 'pandaStates', 'peripheralState', 'modelV2', 'liveCalibration',
                                    'driverMonitoringState', 'longitudinalPlan', 'liveLocationKalman',
                                    'managerState', 'liveParameters', 'radarState', 'liveTorqueParameters',
-                                   'testJoystick'] + self.camera_packets + self.sensor_packets,
+                                   'testJoystick', 'e2eOutput'] + self.camera_packets + self.sensor_packets,
                                   ignore_alive=ignore, ignore_avg_freq=ignore+['radarState', 'testJoystick'], ignore_valid=['testJoystick', ],
                                   frequency=int(1/DT_CTRL))
 
@@ -638,6 +638,69 @@ class Controls:
     if self.active:
       self.current_alert_types.append(ET.WARNING)
 
+  def _apply_e2e_control(self, CC, actuators):
+    """E2E制御をアクチュエーターに適用する（エラーハンドリング強化版）"""
+    import os
+    from openpilot.common.swaglog import cloudlog
+    
+    try:
+      # E2E固定値テスト（開発・デバッグ用）
+      if os.getenv('E2E_FIXED_TEST') == '1':
+        if CC.longActive:
+          actuators.accel = 2  # 固定加速度 2 m/s²
+          cloudlog.debug(f"E2E FIXED TEST: accel={actuators.accel:.3f}")
+        if CC.latActive:
+          actuators.steer = 0  # 固定ステアリング 0
+          actuators.steeringAngleDeg = 0  # 固定ステアリング角度 0度
+          cloudlog.debug(f"E2E FIXED TEST: steer={actuators.steer:.3f}, steeringAngleDeg={actuators.steeringAngleDeg:.1f}")
+        return True  # E2E制御が適用されたことを示す
+      
+      # E2E制御: e2eOutputメッセージの安全なアクセス
+      e2e_alive = False
+      e2e_valid = False
+      
+      try:
+        # SubMasterのe2eOutput状態を安全にチェック
+        e2e_alive = hasattr(self.sm, 'alive') and self.sm.alive.get('e2eOutput', False)
+        
+        if e2e_alive and hasattr(self.sm, 'data') and 'e2eOutput' in self.sm.data:
+          try:
+            e2e_message = self.sm['e2eOutput']
+            e2e_valid = hasattr(e2e_message, 'isValid') and e2e_message.isValid
+          except (KeyError, AttributeError, TypeError):
+            e2e_valid = False
+            cloudlog.debug("E2E: Failed to access e2eOutput message")
+        
+        cloudlog.debug(f"E2E DEBUG: alive={e2e_alive}, valid={e2e_valid}")
+        
+        if e2e_alive and e2e_valid:
+          e2e_data = self.sm['e2eOutput']
+          
+          if CC.longActive and hasattr(e2e_data, 'aEgo'):
+            actuators.accel = float(e2e_data.aEgo)
+            cloudlog.debug(f"E2E CONTROL: accel={actuators.accel:.3f}")
+          if CC.latActive and hasattr(e2e_data, 'steeringTorque'):
+            actuators.steer = float(e2e_data.steeringTorque)
+            
+            # TODO: より物理的に妥当なステアリングトルク→角度変換式を実装予定
+            # 現在: 単純な線形変換 (×10.0)
+            # 改善予定: 車速、ステアリングギア比、車両特性を考慮した変換
+            actuators.steeringAngleDeg = float(e2e_data.steeringTorque) * 10.0
+            
+            cloudlog.debug(f"E2E CONTROL: steer={actuators.steer:.3f}, steeringAngleDeg={actuators.steeringAngleDeg:.1f}")
+          return True
+        
+      except Exception as access_error:
+        cloudlog.error(f"E2E: Error accessing e2eOutput: {access_error}")
+        
+      return False  # E2E制御が適用されなかった
+
+    except Exception as e:
+      cloudlog.error(f"E2E: Critical error in _apply_e2e_control: {e}")
+      import traceback
+      cloudlog.error(f"E2E: Full traceback: {traceback.format_exc()}")
+      return False
+
   def state_control(self, CS):
     """Given the state, this function returns a CarControl packet"""
 
@@ -697,8 +760,40 @@ class Controls:
                                                                              self.steer_limited, self.desired_curvature,
                                                                              self.sm['liveLocationKalman'])
     else:
+      # joystick_modeの場合はlac_logを初期化
       lac_log = log.ControlsState.LateralDebugState.new_message()
-      if self.sm.recv_frame['testJoystick'] > 0:
+
+    # 標準制御値を保存（デュアル推論のため）
+    standard_accel = actuators.accel if CC.longActive else None
+    standard_steer = actuators.steer if CC.latActive else None
+    standard_steer_angle = actuators.steeringAngleDeg if CC.latActive else None
+    
+    # E2E制御: 専用関数で処理
+    e2e_applied = self._apply_e2e_control(CC, actuators)
+    
+    # デュアル推論ログ出力（標準制御とE2E制御の両方の値を記録）
+    from openpilot.common.swaglog import cloudlog
+    if CC.longActive or CC.latActive:
+      if e2e_applied:
+        # E2E制御時: 両方の値をログ出力
+        std_accel_str = f"{standard_accel:.4f}" if standard_accel is not None else "N/A"
+        std_steer_str = f"{standard_steer:.4f}" if standard_steer is not None else "N/A"
+        std_angle_str = f"{standard_steer_angle:.2f}" if standard_steer_angle is not None else "N/A"
+        
+        cloudlog.info(f"DUAL INFERENCE - E2E Active: "
+                      f"std_accel={std_accel_str}, "
+                      f"e2e_accel={actuators.accel:.4f}, "
+                      f"std_steer={std_steer_str}, "
+                      f"e2e_steer={actuators.steer:.4f}, "
+                      f"std_angle={std_angle_str}, "
+                      f"e2e_angle={actuators.steeringAngleDeg:.2f}")
+      else:
+        # 標準制御時のログ出力
+        cloudlog.debug(f"STANDARD CONTROL: longActive={CC.longActive}, latActive={CC.latActive}, "
+                      f"accel={actuators.accel:.4f}, steer={actuators.steer:.4f}, "
+                      f"steer_angle={actuators.steeringAngleDeg:.2f}")
+    
+    if self.sm.recv_frame['testJoystick'] > 0:
         # reset joystick if it hasn't been received in a while
         should_reset_joystick = (self.sm.frame - self.sm.recv_frame['testJoystick'])*DT_CTRL > 0.2
         if not should_reset_joystick:

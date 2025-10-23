@@ -101,12 +101,21 @@ class SimulatedSensors:
 
   def send_camera_images(self, world: 'World'):
     world.image_lock.acquire()
+    print(f"🔍 DEBUG: send_camera_images called, dual_camera={world.dual_camera}")
+    print(f"🔍 DEBUG: road_image shape: {world.road_image.shape}")
+    
     yuv = self.camerad.rgb_to_yuv(world.road_image)
+    print(f"🔍 DEBUG: RGB to YUV conversion completed, yuv size: {len(yuv)}")
+    
     self.camerad.cam_send_yuv_road(yuv)
+    print(f"🔍 DEBUG: Road camera frame sent")
 
     if world.dual_camera:
+      print(f"🔍 DEBUG: wide_road_image shape: {world.wide_road_image.shape}")
       yuv = self.camerad.rgb_to_yuv(world.wide_road_image)
+      print(f"🔍 DEBUG: Wide RGB to YUV conversion completed, yuv size: {len(yuv)}")
       self.camerad.cam_send_yuv_wide_road(yuv)
+      print(f"🔍 DEBUG: Wide camera frame sent")
 
   def update(self, simulator_state: 'SimulatorState', world: 'World'):
     now = time.time()

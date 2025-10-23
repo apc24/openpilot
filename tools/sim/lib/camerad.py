@@ -37,12 +37,16 @@ class Camerad:
     self.Hdiv4 = H // 4 if (H % 4 == 0) else (H + (4 - H % 4)) // 4
 
   def cam_send_yuv_road(self, yuv):
+    print(f"🔍 CAMERAD DEBUG: cam_send_yuv_road called, frame_id={self.frame_road_id}")
     self._send_yuv(yuv, self.frame_road_id, 'roadCameraState', VisionStreamType.VISION_STREAM_ROAD)
     self.frame_road_id += 1
+    print(f"🔍 CAMERAD DEBUG: Road frame sent, new frame_id={self.frame_road_id}")
 
   def cam_send_yuv_wide_road(self, yuv):
+    print(f"🔍 CAMERAD DEBUG: cam_send_yuv_wide_road called, frame_id={self.frame_wide_id}")
     self._send_yuv(yuv, self.frame_wide_id, 'wideRoadCameraState', VisionStreamType.VISION_STREAM_WIDE_ROAD)
     self.frame_wide_id += 1
+    print(f"🔍 CAMERAD DEBUG: Wide frame sent, new frame_id={self.frame_wide_id}")
 
   # Returns: yuv bytes
   def rgb_to_yuv(self, rgb):
@@ -57,7 +61,10 @@ class Camerad:
 
   def _send_yuv(self, yuv, frame_id, pub_type, yuv_type):
     eof = int(frame_id * 0.05 * 1e9)
+    print(f"🔍 VISION_IPC DEBUG: Sending frame {frame_id} via VisionIpcServer, type={yuv_type}, yuv_size={len(yuv)}")
+    
     self.vipc_server.send(yuv_type, yuv, frame_id, eof, eof)
+    print(f"🔍 VISION_IPC DEBUG: VisionIpcServer.send completed for frame {frame_id}")
 
     dat = messaging.new_message(pub_type, valid=True)
     msg = {
@@ -68,3 +75,4 @@ class Camerad:
     }
     setattr(dat, pub_type, msg)
     self.pm.send(pub_type, dat)
+    print(f"🔍 CEREAL DEBUG: {pub_type} message sent for frame {frame_id}")

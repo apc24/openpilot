@@ -12,10 +12,13 @@ if [[ "$CI" ]]; then
   export BLOCK="${BLOCK},ui"
 fi
 
-python -c "from openpilot.selfdrive.test.helpers import set_params_enabled; set_params_enabled()"
+# Poetry環境のPythonパスを使用
+PYTHON_PATH="/home/apc24/.cache/pypoetry/virtualenvs/openpilot-tcju5fyh-py3.11/bin/python"
+
+$PYTHON_PATH -c "from openpilot.selfdrive.test.helpers import set_params_enabled; set_params_enabled()"
 
 SCRIPT_DIR=$(dirname "$0")
 OPENPILOT_DIR=$SCRIPT_DIR/../../
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
-cd $OPENPILOT_DIR/selfdrive/manager && exec ./manager.py
+cd $OPENPILOT_DIR/selfdrive/manager && exec $PYTHON_PATH manager.py

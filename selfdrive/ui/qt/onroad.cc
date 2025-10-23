@@ -659,7 +659,7 @@ void AnnotatedCameraWidget::paintGL() {
 
   if (s->scene.world_objects_visible) {
     update_model(s, model, sm["uiPlan"].getUiPlan());
-    drawLaneLines(painter, s);
+    // drawLaneLines(painter, s);  // コメントアウト：緑の線を非表示
 
     if (s->scene.longitudinal_control && sm.rcv_frame("radarState") > s->scene.started_frame) {
       auto radar_state = sm["radarState"].getRadarState();
