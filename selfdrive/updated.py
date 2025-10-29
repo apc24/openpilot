@@ -409,6 +409,16 @@ class Updater:
 def main() -> None:
   params = Params()
 
+  # カスタムリポジトリ（tmc-ccoe/APC_openpilot）の場合は強制的にアップデートを無効化
+  try:
+    git_remote = run(["git", "remote", "get-url", "origin"], BASEDIR).strip()
+    if "tmc-ccoe/APC_openpilot" in git_remote:
+      cloudlog.warning("Custom repository detected (tmc-ccoe/APC_openpilot) - updates are permanently disabled")
+      exit(0)
+  except subprocess.CalledProcessError:
+    cloudlog.warning("Could not detect git remote, assuming custom build - updates disabled")
+    exit(0)
+
   if params.get_bool("DisableUpdates"):
     cloudlog.warning("updates are disabled by the DisableUpdates param")
     exit(0)
