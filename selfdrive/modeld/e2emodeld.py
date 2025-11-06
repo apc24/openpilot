@@ -53,12 +53,12 @@ SEND_E2E_OUTPUT = os.getenv('SEND_E2E_OUTPUT', '1')          # E2E出力を常�
 # ===== モデルファイルパス設定 =====
 # カスタム学習済みE2Eモデルのパス設定（epoch 19 最新版）
 MODEL_PATHS = {
-  ModelRunner.THNEED: Path(__file__).parent / 'models/checkpoint_epoch_19_best.thneed',  # GPU最適化版（利用可能な場合）
-  ModelRunner.ONNX: Path(__file__).parent / 'models/checkpoint_epoch_19_best.onnx'       # 標準ONNX版
+  # ModelRunner.THNEED: Path(__file__).parent / 'models/checkpoint_epoch_19_best.thneed',  # GPU最適化版（利用可能な場合）※libthneed.so不足のためコメントアウト
+  ModelRunner.ONNX: Path(__file__).parent / 'models/checkpoint_epoch_19_best.onnx'       # 標準ONNX版（フォールバック）
 }
 
 # モデルメタデータファイル（入力/出力形状情報を含む）
-METADATA_PATH = Path(__file__).parent / 'models/supercombo_metadata.pkl'
+METADATA_PATH = Path(__file__).parent / 'models/e2e_metadata.pkl'  # E2E専用メタデータ
 
 # ===== モデル入力パラメータのデフォルト設定 =====
 DEFAULT_CAR_STATE_DIM = 8      # 車両状態ベクターの次元数（速度、加速度、角度など）
@@ -520,10 +520,10 @@ class E2EModelState:
       self.output_slices = model_metadata['output_slices']  # 出力データの分割方法
       net_output_size = model_metadata['output_shapes']['outputs'][1]  # 出力ベクターサイズ
     else:
-      cloudlog.warning("supercombo_metadata.pkl not found, using default values for custom E2E model")
+      cloudlog.warning("e2e_metadata.pkl not found, using default values for custom E2E model")
       # カスタムONNXモデル用のデフォルト設定
       self.output_slices = {}                                        # 出力分割なし
-      net_output_size = 2                                           # control_output: [steer, acc] (config.py順序)
+      net_output_size = 2                                           # control_output: [acc, steer] (Cap'n Proto順序)
 
     # モデル出力バッファの初期化
     self.output = np.zeros(net_output_size, dtype=np.float32)
@@ -1134,7 +1134,10 @@ def main(demo=False):
       maneuvers_count = len(sm["navInstruction"].allManeuvers)
       print(f"🧭 NAV MANEUVERS: count={maneuvers_count}", flush=True)
       
-      for i, maneuver in enumerate(sm["navInstruction"].allManeuvers[:3]):  # 最初の3つまで表示
+      # capnpリストのスライシング対応：最初の3つまで（またはmaneuvers_countまで）
+      max_display = min(3, maneuvers_count)
+      for i in range(max_display):
+        maneuver = sm["navInstruction"].allManeuvers[i]
         print(f"🧭 MANEUVER[{i}]: distance={getattr(maneuver, 'distance', 'N/A')}, modifier={getattr(maneuver, 'modifier', 'N/A')}, type={getattr(maneuver, 'type', 'N/A')}", flush=True)
     else:
       print(f"🧭 NAV MANEUVERS: none or invalid", flush=True)
@@ -1274,12 +1277,12 @@ def main(demo=False):
           control_outputs = model_output['control_output']
           cloudlog.debug(f"E2E ONNX control_output shape: {control_outputs.shape}")
           
-          # control_outputから値を取得 [1, 2] -> [steer, acc] (config.py順序)
+          # control_outputから値を取得 [1, 2] -> [acc, steer] (Cap'n Proto順序)
           if hasattr(control_outputs, 'flatten') and len(control_outputs.flatten()) >= 2:
             flat_outputs = control_outputs.flatten()
-            e2e_steer = float(flat_outputs[0])  # config.py: 0番目="steer"
-            e2e_acc = float(flat_outputs[1])    # config.py: 1番目="acc"
-            cloudlog.debug(f"E2E parsed from control_output: steer={e2e_steer:.6f}, acc={e2e_acc:.6f}")
+            e2e_acc = float(flat_outputs[0])    # Cap'n Proto: 0番目=aEgo(acc)
+            e2e_steer = float(flat_outputs[1])  # Cap'n Proto: 1番目=steeringTorque(steer)
+            cloudlog.debug(f"E2E parsed from control_output: acc={e2e_acc:.6f}, steer={e2e_steer:.6f}")
             
             # デバッグ: モデル出力の詳細ログ
             cloudlog.debug(f"🤖 MODEL OUTPUT RAW: control_outputs.shape={control_outputs.shape}, flat_outputs={flat_outputs}")
@@ -1340,8 +1343,8 @@ def main(demo=False):
           
           # e2eOutputメッセージ（config.py順序で統一）
           e2e_out_msg = messaging.new_message('e2eOutput')
-          e2e_out_msg.e2eOutput.steeringTorque = e2e_steer  # config.py: "steer"
-          e2e_out_msg.e2eOutput.aEgo = e2e_acc              # config.py: "acc"
+          e2e_out_msg.e2eOutput.aEgo = e2e_acc              # @0: 加速度（Cap'n Proto順序に合わせ）
+          e2e_out_msg.e2eOutput.steeringTorque = e2e_steer  # @1: ステアリングトルク
           e2e_out_msg.e2eOutput.timestamp = int(time.time_ns())
           e2e_out_msg.e2eOutput.isValid = True
           
@@ -1364,8 +1367,8 @@ def main(demo=False):
         # エラー時でも無効なメッセージを送信（デバッグ用、config.py順序で統一）
         try:
           e2e_out_msg = messaging.new_message('e2eOutput')
-          e2e_out_msg.e2eOutput.steeringTorque = 0.0  # config.py: "steer"
-          e2e_out_msg.e2eOutput.aEgo = 0.0            # config.py: "acc"
+          e2e_out_msg.e2eOutput.aEgo = 0.0            # @0: 加速度（Cap'n Proto順序に合わせ）
+          e2e_out_msg.e2eOutput.steeringTorque = 0.0  # @1: ステアリングトルク
           e2e_out_msg.e2eOutput.timestamp = int(time.time_ns())
           e2e_out_msg.e2eOutput.isValid = False
           
