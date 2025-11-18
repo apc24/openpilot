@@ -76,26 +76,26 @@ struct Alert {
       const int controls_missing = (nanos_since_boot() - sm.rcv_time("controlsState")) / 1e9;
 
       // Handle controls timeout
-      if (controls_frame < started_frame) {
-        // car is started, but controlsState hasn't been seen at all
-        alert = {"openpilot Unavailable", "Waiting for controls to start",
-                 "controlsWaiting", cereal::ControlsState::AlertSize::MID,
-                 cereal::ControlsState::AlertStatus::NORMAL,
-                 AudibleAlert::NONE};
-      } else if (controls_missing > CONTROLS_TIMEOUT && !Hardware::PC()) {
-        // car is started, but controls is lagging or died
-        if (cs.getEnabled() && (controls_missing - CONTROLS_TIMEOUT) < 10) {
-          alert = {"TAKE CONTROL IMMEDIATELY", "Controls Unresponsive",
-                   "controlsUnresponsive", cereal::ControlsState::AlertSize::FULL,
-                   cereal::ControlsState::AlertStatus::CRITICAL,
-                   AudibleAlert::WARNING_IMMEDIATE};
-        } else {
-          alert = {"Controls Unresponsive", "Reboot Device",
-                   "controlsUnresponsivePermanent", cereal::ControlsState::AlertSize::MID,
-                   cereal::ControlsState::AlertStatus::NORMAL,
-                   AudibleAlert::NONE};
-        }
-      }
+      // if (controls_frame < started_frame) {
+      //   // car is started, but controlsState hasn't been seen at all
+      //   alert = {"openpilot Unavailable", "Waiting for controls to start",
+      //            "controlsWaiting", cereal::ControlsState::AlertSize::MID,
+      //            cereal::ControlsState::AlertStatus::NORMAL,
+      //            AudibleAlert::NONE};
+      // } else if (controls_missing > CONTROLS_TIMEOUT && !Hardware::PC()) {
+      //   // car is started, but controls is lagging or died
+      //   if (cs.getEnabled() && (controls_missing - CONTROLS_TIMEOUT) < 10) {
+      //     alert = {"TAKE CONTROL IMMEDIATELY", "Controls Unresponsive",
+      //              "controlsUnresponsive", cereal::ControlsState::AlertSize::FULL,
+      //              cereal::ControlsState::AlertStatus::CRITICAL,
+      //              AudibleAlert::WARNING_IMMEDIATE};
+      //   } else {
+      //     alert = {"Controls Unresponsive", "Reboot Device",
+      //              "controlsUnresponsivePermanent", cereal::ControlsState::AlertSize::MID,
+      //              cereal::ControlsState::AlertStatus::NORMAL,
+      //              AudibleAlert::NONE};
+      //   }
+      // }
     }
     return alert;
   }
