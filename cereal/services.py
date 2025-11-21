@@ -92,6 +92,9 @@ _services: dict[str, tuple] = {
   "customReservedRawData0": (True, 0.),
   "customReservedRawData1": (True, 0.),
   "customReservedRawData2": (True, 0.),
+  #E2E出力
+  "customReserved0": (True, 10.),  # 10Hz、rlogに記録
+  "e2eOutput": (True, 10.),  # E2Eモデル出力、10Hz、rlogに記録
 }
 SERVICE_LIST = {name: Service(*vals) for
                 idx, (name, vals) in enumerate(_services.items())}
