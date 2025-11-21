@@ -6,7 +6,7 @@
   url = ../../commaai/opendbc.git
 [submodule "cereal"]
   path = cereal
-  url = ../../commaai/cereal.git
+  url = https://github.com/apc24/msgq.git
 [submodule "rednose_repo"]
   path = rednose_repo
   url = ../../commaai/rednose.git
