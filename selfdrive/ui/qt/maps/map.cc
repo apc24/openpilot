@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <eigen3/Eigen/Dense>
 
+#include <QCoreApplication>
 #include <QDebug>
 
 #include "selfdrive/ui/qt/maps/map_helpers.h"
@@ -263,7 +264,10 @@ void MapWindow::initializeGL() {
 
   m_map->setMargins({0, 350, 0, 50});
   m_map->setPitch(MIN_PITCH);
-  m_map->setStyleUrl("mapbox://styles/commaai/clkqztk0f00ou01qyhsa5bzpj");
+//  m_map->setStyleUrl("mapbox://styles/commaai/clkqztk0f00ou01qyhsa5bzpj");
+  QString basePath = QCoreApplication::applicationDirPath();
+  QString styleUrl = "file://" + basePath + "/../../selfdrive/navd/style.json";
+  m_map->setStyleUrl(styleUrl);
 
   QObject::connect(m_map.data(), &QMapLibre::Map::mapChanged, [=](QMapLibre::Map::MapChange change) {
     // set global animation duration to 0 ms so visibility changes are instant

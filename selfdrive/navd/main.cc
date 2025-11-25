@@ -22,7 +22,9 @@ int main(int argc, char *argv[]) {
   std::signal(SIGINT, sigTermHandler);
   std::signal(SIGTERM, sigTermHandler);
 
-  MapRenderer * m = new MapRenderer(get_mapbox_settings());
+  //MapRenderer * m = new MapRenderer(get_mapbox_settings());
+  MapRenderer * m = new MapRenderer(get_maptiler_settings());
+
   assert(m);
 
   return app.exec();

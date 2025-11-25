@@ -17,17 +17,46 @@ if __name__ == "__main__":
     params.put("NavDestination", json.dumps(dest))
     params.remove("NavDestinationWaypoints")
   else:
-    print("Setting to Taco Bell")
+  #  print("Setting to Taco Bell")
+  #  dest = {
+  #    "latitude": 32.71160109904473,
+  #    "longitude": -117.12556569985693,
+  #  }
+  #  print("Dai2 suihei tyokusenn ro")
+  #  dest = {
+  #    "latitude": 35.2218951,
+  #    "longitude": 138.90376298,
+  #    "place_name": "WORK",
+  #    "place_details": "Test course No.2"
+  #  }
+  #  print("Sankei DAI")
+  #  dest = {
+  #    "latitude": 35.1304476,
+  #    "longitude": 138.9372459,
+  #    "place_name": "HOME",
+  #    "place_details": "19-3, Sankei-Dai, Mishima-shi, Susono"
+  #  }
+  #  print("三恵台公園")
+  #  dest = {
+  #    "latitude": 35.1295238,
+  #    "longitude": 138.9400952,
+  #    "place_name": "三恵台公園",
+  #    "place_details": "19-3, Sankei-Dai, Mishima-shi, Susono"
+  #  }
+    print("第３週回路")
     dest = {
-      "latitude": 32.71160109904473,
-      "longitude": -117.12556569985693,
+      "latitude": 35.2303444,
+      "longitude": 138.8902247,
+  #    "place_name": "Test course No.3" ,
+  #    "place_details": "1200, Mishuku, Susono , Shizuoka"
     }
+
     params.put("NavDestination", json.dumps(dest))
 
-    waypoints = [
-      (-117.16020713111648, 32.71997612490662),
-    ]
-    params.put("NavDestinationWaypoints", json.dumps(waypoints))
+#    waypoints = [
+#      (-117.16020713111648, 32.71997612490662),
+#    ]
+#    params.put("NavDestinationWaypoints", json.dumps(waypoints))
 
     print(dest)
-    print(waypoints)
+#    print(waypoints)

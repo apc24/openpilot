@@ -17,6 +17,9 @@ from openpilot.selfdrive.navd.helpers import (Coordinate, coordinate_from_param,
                                     parse_banner_instructions)
 from openpilot.common.swaglog import cloudlog
 
+# modified by sakayanagi
+from openpilot.selfdrive.navd.generateMapboxOutput import genMapboxJson, checkDestination
+
 REROUTE_DISTANCE = 25
 MANEUVER_TRANSITION_THRESHOLD = 10
 REROUTE_COUNTER_MIN = 3
@@ -151,12 +154,17 @@ class RouteEngine:
     coords_str = ';'.join([f'{lon},{lat}' for lon, lat in coords])
     url = self.mapbox_host + '/directions/v5/mapbox/driving-traffic/' + coords_str
     try:
-      resp = requests.get(url, params=params, timeout=10)
-      if resp.status_code != 200:
-        cloudlog.event("API request failed", status_code=resp.status_code, text=resp.text, error=True)
-      resp.raise_for_status()
+      # modified by sakayanagi
+      if checkDestination({'lon': destination.longitude, 'lat': destination.latitude}):
+        r = genMapboxJson({'lon': self.last_position.longitude, 'lat': self.last_position.latitude})
+      else:
 
-      r = resp.json()
+        resp = requests.get(url, params=params, timeout=10)
+        if resp.status_code != 200:
+          cloudlog.event("API request failed", status_code=resp.status_code, text=resp.text, error=True)
+        resp.raise_for_status()
+        r = resp.json()
+
       if len(r['routes']):
         self.route = r['routes'][0]['legs'][0]['steps']
         self.route_geometry = []
