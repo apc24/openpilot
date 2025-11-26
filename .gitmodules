@@ -14,7 +14,7 @@
   url = ../../commaai/rednose.git
 [submodule "body"]
   path = body
-  url = ../../commaai/body.git
+  url = https://github.com/apc24/body.git
 [submodule "teleoprtc_repo"]
   path = teleoprtc_repo
   url = ../../commaai/teleoprtc
