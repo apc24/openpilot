@@ -1,8 +1,10 @@
+import unittest
+
 from openpilot.common.simple_kalman import KF1D
 
 
-class TestSimpleKalman:
-  def setup_method(self):
+class TestSimpleKalman(unittest.TestCase):
+  def setUp(self):
     dt = 0.01
     x0_0 = 0.0
     x1_0 = 0.0
@@ -22,8 +24,12 @@ class TestSimpleKalman:
 
   def test_getter_setter(self):
     self.kf.set_x([[1.0], [1.0]])
-    assert self.kf.x == [[1.0], [1.0]]
+    self.assertEqual(self.kf.x, [[1.0], [1.0]])
 
   def update_returns_state(self):
     x = self.kf.update(100)
-    assert x == self.kf.x
+    self.assertEqual(x, self.kf.x)
+
+
+if __name__ == "__main__":
+  unittest.main()

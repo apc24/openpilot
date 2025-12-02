@@ -13,7 +13,7 @@ if __name__ == "__main__":
       cnos = []
       for m in ug.measurementReport.measurements:
         cnos.append(m.cno)
-      print(f"Sats: {ug.measurementReport.numMeas}   Accuracy: {gle.horizontalAccuracy:.2f} m   cnos", sorted(cnos))
+      print("Sats: %d   Accuracy: %.2f m   cnos" % (ug.measurementReport.numMeas, gle.accuracy), sorted(cnos))
     except Exception:
       pass
     sm.update()

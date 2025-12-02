@@ -8,16 +8,16 @@
 #include <QMetaType>
 #include <QString>
 
+
 const QString UNTITLED = "untitled";
 const QString DEFAULT_NODE_NAME = "XXX";
-constexpr int CAN_MAX_DATA_BYTES = 64;
 
 struct MessageId {
   uint8_t source = 0;
   uint32_t address = 0;
 
   QString toString() const {
-    return QString("%1:%2").arg(source).arg(QString::number(address, 16).toUpper());
+    return QString("%1:%2").arg(source).arg(address, 1, 16);
   }
 
   bool operator==(const MessageId &other) const {
@@ -29,11 +29,11 @@ struct MessageId {
   }
 
   bool operator<(const MessageId &other) const {
-    return std::tie(source, address) < std::tie(other.source, other.address);
+    return std::pair{source, address} < std::pair{other.source, other.address};
   }
 
   bool operator>(const MessageId &other) const {
-    return std::tie(source, address) > std::tie(other.source, other.address);
+    return std::pair{source, address} > std::pair{other.source, other.address};
   }
 };
 
@@ -55,7 +55,7 @@ public:
   Signal(const Signal &other) = default;
   void update();
   bool getValue(const uint8_t *data, size_t data_size, double *val) const;
-  QString formatValue(double value, bool with_unit = true) const;
+  QString formatValue(double value) const;
   bool operator==(const cabana::Signal &other) const;
   inline bool operator!=(const cabana::Signal &other) const { return !(*this == other); }
 

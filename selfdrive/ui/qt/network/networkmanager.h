@@ -32,7 +32,6 @@ const QString NM_DBUS_INTERFACE_IP4_CONFIG          = "org.freedesktop.NetworkMa
 
 const QString NM_DBUS_SERVICE                        = "org.freedesktop.NetworkManager";
 
-const int NM_DEVICE_STATE_UNKNOWN = 0;
 const int NM_DEVICE_STATE_ACTIVATED = 100;
 const int NM_DEVICE_STATE_NEED_AUTH = 60;
 const int NM_DEVICE_TYPE_WIFI = 2;

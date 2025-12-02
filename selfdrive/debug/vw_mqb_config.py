@@ -3,12 +3,9 @@
 import argparse
 import struct
 from enum import IntEnum
-from opendbc.car.carlog import carlog
-from opendbc.car.uds import UdsClient, MessageTimeoutError, NegativeResponseError, SESSION_TYPE,\
-  DATA_IDENTIFIER_TYPE, ACCESS_TYPE
-from opendbc.car.structs import CarParams
 from panda import Panda
-from datetime import date
+from panda.python.uds import UdsClient, MessageTimeoutError, NegativeResponseError, SESSION_TYPE,\
+  DATA_IDENTIFIER_TYPE, ACCESS_TYPE
 
 # TODO: extend UDS library to allow custom/vendor-defined data identifiers without ignoring type checks
 class VOLKSWAGEN_DATA_IDENTIFIER_TYPE(IntEnum):
@@ -35,13 +32,10 @@ if __name__ == "__main__":
   parser.add_argument("action", choices={"show", "enable", "disable"}, help="show or modify current EPS HCA config")
   args = parser.parse_args()
 
-  if args.debug:
-    carlog.setLevel('DEBUG')
-
   panda = Panda()
-  panda.set_safety_mode(CarParams.SafetyModel.elm327)
+  panda.set_safety_mode(Panda.SAFETY_ELM327)
   bus = 1 if panda.has_obd() else 0
-  uds_client = UdsClient(panda, MQB_EPS_CAN_ADDR, MQB_EPS_CAN_ADDR + RX_OFFSET, bus, timeout=0.2)
+  uds_client = UdsClient(panda, MQB_EPS_CAN_ADDR, MQB_EPS_CAN_ADDR + RX_OFFSET, bus, timeout=0.2, debug=args.debug)
 
   try:
     uds_client.diagnostic_session_control(SESSION_TYPE.EXTENDED_DIAGNOSTIC)
@@ -142,10 +136,8 @@ if __name__ == "__main__":
       # last two bytes, but not the VZ/importer or tester serial number
       # Can't seem to read it back, but we can read the calibration tester,
       # so fib a little and say that same tester did the programming
-      current_date = date.today()
-      formatted_date = current_date.strftime('%y-%m-%d')
-      year, month, day = (int(part) for part in formatted_date.split('-'))
-      prog_date = bytes([year, month, day])
+      # TODO: encode the actual current date
+      prog_date = b'\x22\x02\x08'
       uds_client.write_data_by_identifier(DATA_IDENTIFIER_TYPE.PROGRAMMING_DATE, prog_date)
       tester_num = uds_client.read_data_by_identifier(DATA_IDENTIFIER_TYPE.CALIBRATION_REPAIR_SHOP_CODE_OR_CALIBRATION_EQUIPMENT_SERIAL_NUMBER)
       uds_client.write_data_by_identifier(DATA_IDENTIFIER_TYPE.REPAIR_SHOP_CODE_OR_TESTER_SERIAL_NUMBER, tester_num)

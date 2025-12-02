@@ -1,13 +1,13 @@
-import pytest
 import os
 import threading
 import time
 import uuid
+import unittest
 
 from openpilot.common.params import Params, ParamKeyType, UnknownKeyName
 
-class TestParams:
-  def setup_method(self):
+class TestParams(unittest.TestCase):
+  def setUp(self):
     self.params = Params()
 
   def test_params_put_and_get(self):
@@ -49,16 +49,16 @@ class TestParams:
     assert self.params.get("CarParams", True) == b"test"
 
   def test_params_unknown_key_fails(self):
-    with pytest.raises(UnknownKeyName):
+    with self.assertRaises(UnknownKeyName):
       self.params.get("swag")
 
-    with pytest.raises(UnknownKeyName):
+    with self.assertRaises(UnknownKeyName):
       self.params.get_bool("swag")
 
-    with pytest.raises(UnknownKeyName):
+    with self.assertRaises(UnknownKeyName):
       self.params.put("swag", "abc")
 
-    with pytest.raises(UnknownKeyName):
+    with self.assertRaises(UnknownKeyName):
       self.params.put_bool("swag", True)
 
   def test_remove_not_there(self):
@@ -68,19 +68,19 @@ class TestParams:
 
   def test_get_bool(self):
     self.params.remove("IsMetric")
-    assert not self.params.get_bool("IsMetric")
+    self.assertFalse(self.params.get_bool("IsMetric"))
 
     self.params.put_bool("IsMetric", True)
-    assert self.params.get_bool("IsMetric")
+    self.assertTrue(self.params.get_bool("IsMetric"))
 
     self.params.put_bool("IsMetric", False)
-    assert not self.params.get_bool("IsMetric")
+    self.assertFalse(self.params.get_bool("IsMetric"))
 
     self.params.put("IsMetric", "1")
-    assert self.params.get_bool("IsMetric")
+    self.assertTrue(self.params.get_bool("IsMetric"))
 
     self.params.put("IsMetric", "0")
-    assert not self.params.get_bool("IsMetric")
+    self.assertFalse(self.params.get_bool("IsMetric"))
 
   def test_put_non_blocking_with_get_block(self):
     q = Params()
@@ -107,3 +107,7 @@ class TestParams:
     assert len(keys) > 20
     assert len(keys) == len(set(keys))
     assert b"CarParams" in keys
+
+
+if __name__ == "__main__":
+  unittest.main()

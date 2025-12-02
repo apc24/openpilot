@@ -33,9 +33,13 @@ void DeviceStream::streamThread() {
   }
 }
 
+AbstractOpenStreamWidget *DeviceStream::widget(AbstractStream **stream) {
+  return new OpenDeviceWidget(stream);
+}
+
 // OpenDeviceWidget
 
-OpenDeviceWidget::OpenDeviceWidget(QWidget *parent) : AbstractOpenStreamWidget(parent) {
+OpenDeviceWidget::OpenDeviceWidget(AbstractStream **stream) : AbstractOpenStreamWidget(stream) {
   QRadioButton *msgq = new QRadioButton(tr("MSGQ"));
   QRadioButton *zmq = new QRadioButton(tr("ZMQ"));
   ip_address = new QLineEdit(this);
@@ -58,8 +62,9 @@ OpenDeviceWidget::OpenDeviceWidget(QWidget *parent) : AbstractOpenStreamWidget(p
   zmq->setChecked(true);
 }
 
-AbstractStream *OpenDeviceWidget::open() {
+bool OpenDeviceWidget::open() {
   QString ip = ip_address->text().isEmpty() ? "127.0.0.1" : ip_address->text();
   bool msgq = group->checkedId() == 0;
-  return new DeviceStream(qApp, msgq ? "" : ip);
+  *stream = new DeviceStream(qApp, msgq ? "" : ip);
+  return true;
 }

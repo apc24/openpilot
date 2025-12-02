@@ -49,6 +49,10 @@ AddOption('--ccflags',
           default='',
           help='pass arbitrary flags over the command line')
 
+AddOption('--snpe',
+          action='store_true',
+          help='use SNPE on PC')
+
 AddOption('--external-sconscript',
           action='store',
           metavar='FILE',
@@ -60,14 +64,10 @@ AddOption('--pc-thneed',
           dest='pc_thneed',
           help='use thneed on pc')
 
-AddOption('--mutation',
-          action='store_true',
-          help='generate mutation-ready code')
-
 AddOption('--minimal',
           action='store_false',
           dest='extras',
-          default=os.path.exists(File('#.lfsconfig').abspath), # minimal by default on release branch (where there's no LFS)
+          default=os.path.islink(Dir('#rednose/').abspath), # minimal by default on release branch (where rednose is not a link)
           help='the minimum build to run openpilot. no tests, tools, etc.')
 
 ## Architecture name breakdown (arch)
@@ -96,17 +96,21 @@ lenv = {
 rpath = lenv["LD_LIBRARY_PATH"].copy()
 
 if arch == "larch64":
+  lenv["LD_LIBRARY_PATH"] += ['/data/data/com.termux/files/usr/lib']
+
   cpppath = [
     "#third_party/opencl/include",
   ]
 
   libpath = [
     "/usr/local/lib",
+    "/usr/lib",
     "/system/vendor/lib64",
     f"#third_party/acados/{arch}/lib",
   ]
 
   libpath += [
+    "#third_party/snpe/larch64",
     "#third_party/libyuv/larch64/lib",
     "/usr/lib/aarch64-linux-gnu"
   ]
@@ -145,6 +149,14 @@ else:
       "/usr/local/lib",
     ]
 
+    if arch == "x86_64":
+      libpath += [
+        f"#third_party/snpe/{arch}"
+      ]
+      rpath += [
+        Dir(f"#third_party/snpe/{arch}").abspath,
+      ]
+
 if GetOption('asan'):
   ccflags = ["-fsanitize=address", "-fno-omit-frame-pointer"]
   ldflags = ["-fsanitize=address"]
@@ -158,6 +170,10 @@ else:
 # no --as-needed on mac linker
 if arch != "Darwin":
   ldflags += ["-Wl,--as-needed", "-Wl,--no-undefined"]
+
+# Enable swaglog include in submodules
+cflags += ['-DSWAGLOG="\\"common/swaglog.h\\""']
+cxxflags += ['-DSWAGLOG="\\"common/swaglog.h\\""']
 
 ccflags_option = GetOption('ccflags')
 if ccflags_option:
@@ -173,10 +189,12 @@ env = Environment(
     "-Werror",
     "-Wshadow",
     "-Wno-unknown-warning-option",
+    "-Wno-deprecated-register",
+    "-Wno-register",
     "-Wno-inconsistent-missing-override",
     "-Wno-c99-designator",
     "-Wno-reorder-init-list",
-    "-Wno-vla-cxx-extension",
+    "-Wno-error=unused-but-set-variable",
   ] + cflags + ccflags,
 
   CPPPATH=cpppath + [
@@ -188,8 +206,13 @@ env = Environment(
     "#third_party/libyuv/include",
     "#third_party/json11",
     "#third_party/linux/include",
+    "#third_party/snpe/include",
+    "#third_party/qrcode",
     "#third_party",
-    "#msgq",
+    "#cereal",
+    "#opendbc/can",
+    "#third_party/maplibre-native-qt/include",
+    f"#third_party/maplibre-native-qt/{arch}/include"
   ],
 
   CC='clang',
@@ -201,9 +224,10 @@ env = Environment(
   CFLAGS=["-std=gnu11"] + cflags,
   CXXFLAGS=["-std=c++1z"] + cxxflags,
   LIBPATH=libpath + [
-    "#msgq_repo",
+    "#cereal",
     "#third_party",
-    "#selfdrive/pandad",
+    "#opendbc/can",
+    "#selfdrive/boardd",
     "#common",
     "#rednose/helpers",
   ],
@@ -211,7 +235,7 @@ env = Environment(
   COMPILATIONDB_USE_ABSPATH=True,
   REDNOSE_ROOT="#",
   tools=["default", "cython", "compilation_db", "rednose_filter"],
-  toolpath=["#site_scons/site_tools", "#rednose_repo/site_scons/site_tools"],
+  toolpath=["#rednose_repo/site_scons/site_tools"],
 )
 
 if arch == "Darwin":
@@ -250,12 +274,11 @@ if arch == "Darwin":
 else:
   envCython["LINKFLAGS"] = ["-pthread", "-shared"]
 
-np_version = SCons.Script.Value(np.__version__)
-Export('envCython', 'np_version')
+Export('envCython')
 
 # Qt build environment
 qt_env = env.Clone()
-qt_modules = ["Widgets", "Gui", "Core", "Network", "Concurrent", "DBus", "Xml"]
+qt_modules = ["Widgets", "Gui", "Core", "Network", "Concurrent", "Multimedia", "Quick", "Qml", "QuickWidgets", "Location", "Positioning", "DBus", "Xml"]
 
 qt_libs = []
 if arch == "Darwin":
@@ -295,17 +318,21 @@ try:
 except SCons.Errors.UserError:
   qt_env.Tool('qt')
 
-qt_env['CPPPATH'] += qt_dirs + ["#third_party/qrcode"]
+qt_env['CPPPATH'] += qt_dirs# + ["#selfdrive/ui/qt/"]
 qt_flags = [
   "-D_REENTRANT",
   "-DQT_NO_DEBUG",
   "-DQT_WIDGETS_LIB",
   "-DQT_GUI_LIB",
+  "-DQT_QUICK_LIB",
+  "-DQT_QUICKWIDGETS_LIB",
+  "-DQT_QML_LIB",
   "-DQT_CORE_LIB",
   "-DQT_MESSAGELOGCONTEXT",
 ]
 qt_env['CXXFLAGS'] += qt_flags
-qt_env['LIBPATH'] += ['#selfdrive/ui', ]
+qt_env['LIBPATH'] += ['#selfdrive/ui', f"#third_party/maplibre-native-qt/{arch}/lib"]
+qt_env['RPATH'] += [Dir(f"#third_party/maplibre-native-qt/{arch}/lib").srcnode().abspath]
 qt_env['LIBS'] = qt_libs
 
 if GetOption("clazy"):
@@ -325,27 +352,27 @@ Export('env', 'qt_env', 'arch', 'real_arch')
 SConscript(['common/SConscript'])
 Import('_common', '_gpucommon')
 
-common = [_common, 'json11', 'zmq']
+common = [_common, 'json11']
 gpucommon = [_gpucommon]
 
 Export('common', 'gpucommon')
 
-# Build messaging (cereal + msgq + socketmaster + their dependencies)
-# Enable swaglog include in submodules
-env_swaglog = env.Clone()
-env_swaglog['CXXFLAGS'].append('-DSWAGLOG="\\"common/swaglog.h\\""')
-SConscript(['msgq_repo/SConscript'], exports={'env': env_swaglog})
-SConscript(['opendbc_repo/SConscript'], exports={'env': env_swaglog})
-
+# Build cereal and messaging
 SConscript(['cereal/SConscript'])
 
-Import('socketmaster', 'msgq')
-messaging = [socketmaster, msgq, 'capnp', 'kj',]
-Export('messaging')
+cereal = [File('#cereal/libcereal.a')]
+messaging = [File('#cereal/libmessaging.a')]
+visionipc = [File('#cereal/libvisionipc.a')]
+messaging_python = [File('#cereal/messaging/messaging_pyx.so')]
 
+Export('cereal', 'messaging', 'messaging_python', 'visionipc')
 
 # Build other submodules
-SConscript(['panda/SConscript'])
+SConscript([
+  'body/board/SConscript',
+  'opendbc/can/SConscript',
+  'panda/SConscript',
+])
 
 # Build rednose library
 SConscript(['rednose/SConscript'])
@@ -358,22 +385,25 @@ SConscript([
 ])
 if arch != "Darwin":
   SConscript([
+    'system/camerad/SConscript',
     'system/sensord/SConscript',
     'system/logcatd/SConscript',
   ])
 
-if arch == "larch64":
-  SConscript(['system/camerad/SConscript'])
-
 # Build openpilot
 SConscript(['third_party/SConscript'])
 
-SConscript(['selfdrive/SConscript'])
+SConscript(['selfdrive/boardd/SConscript'])
+SConscript(['selfdrive/controls/lib/lateral_mpc_lib/SConscript'])
+SConscript(['selfdrive/controls/lib/longitudinal_mpc_lib/SConscript'])
+SConscript(['selfdrive/locationd/SConscript'])
+SConscript(['selfdrive/navd/SConscript'])
+SConscript(['selfdrive/modeld/SConscript'])
+SConscript(['selfdrive/ui/SConscript'])
 
-if Dir('#tools/cabana/').exists() and GetOption('extras'):
+if arch in ['x86_64', 'aarch64', 'Darwin'] and Dir('#tools/cabana/').exists() and GetOption('extras'):
   SConscript(['tools/replay/SConscript'])
-  if arch != "larch64":
-    SConscript(['tools/cabana/SConscript'])
+  SConscript(['tools/cabana/SConscript'])
 
 external_sconscript = GetOption('external_sconscript')
 if external_sconscript:

@@ -246,35 +246,18 @@ std::string random_string(std::string::size_type length) {
   return s;
 }
 
+std::string dir_name(std::string const &path) {
+  size_t pos = path.find_last_of("/");
+  if (pos == std::string::npos) return "";
+  return path.substr(0, pos);
+}
+
 bool starts_with(const std::string &s1, const std::string &s2) {
   return strncmp(s1.c_str(), s2.c_str(), s2.size()) == 0;
 }
 
-bool ends_with(const std::string& s, const std::string& suffix) {
-  return s.size() >= suffix.size() &&
-         strcmp(s.c_str() + (s.size() - suffix.size()), suffix.c_str()) == 0;
-}
-
-std::string strip(const std::string &str) {
-  auto should_trim = [](unsigned char ch) {
-    return std::isspace(ch) || ch == '\0';
-  };
-
-  size_t start = 0;
-  while (start < str.size() && should_trim(static_cast<unsigned char>(str[start]))) {
-    start++;
-  }
-
-  if (start == str.size()) {
-    return "";
-  }
-
-  size_t end = str.size() - 1;
-  while (end > 0 && should_trim(static_cast<unsigned char>(str[end]))) {
-    end--;
-  }
-
-  return str.substr(start, end - start + 1);
+bool ends_with(const std::string &s1, const std::string &s2) {
+  return strcmp(s1.c_str() + (s1.size() - s2.size()), s2.c_str()) == 0;
 }
 
 std::string check_output(const std::string& command) {
@@ -293,17 +276,20 @@ std::string check_output(const std::string& command) {
   return result;
 }
 
-bool system_time_valid() {
-  // Default to August 26, 2024
-  tm min_tm = {.tm_year = 2024 - 1900, .tm_mon = 7, .tm_mday = 26};
-  time_t min_date = mktime(&min_tm);
+struct tm get_time() {
+  time_t rawtime;
+  time(&rawtime);
 
-  struct stat st;
-  if (stat("/lib/systemd/systemd", &st) == 0) {
-    min_date = std::max(min_date, st.st_mtime + 86400);  // Add 1 day (86400 seconds)
-  }
+  struct tm sys_time;
+  gmtime_r(&rawtime, &sys_time);
 
-  return time(nullptr) > min_date;
+  return sys_time;
+}
+
+bool time_valid(struct tm sys_time) {
+  int year = 1900 + sys_time.tm_year;
+  int month = 1 + sys_time.tm_mon;
+  return (year > 2023) || (year == 2023 && month >= 6);
 }
 
 }  // namespace util

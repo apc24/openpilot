@@ -6,6 +6,7 @@
 #include <QScrollBar>
 #include <QStyle>
 
+#include "selfdrive/ui/ui.h"
 #include "selfdrive/ui/qt/qt_window.h"
 #include "selfdrive/ui/qt/util.h"
 #include "selfdrive/ui/qt/widgets/controls.h"
@@ -72,11 +73,6 @@ Networking::Networking(QWidget* parent, bool show_advanced) : QFrame(parent) {
   main_layout->setCurrentWidget(wifiScreen);
 }
 
-void Networking::setPrimeType(PrimeState::Type type) {
-  an->setGsmVisible(type == PrimeState::PRIME_TYPE_NONE || type == PrimeState::PRIME_TYPE_LITE);
-  wifi->ipv4_forward = (type == PrimeState::PRIME_TYPE_NONE || type == PrimeState::PRIME_TYPE_LITE);
-}
-
 void Networking::refresh() {
   wifiWidget->refresh();
   an->refresh();
@@ -86,11 +82,11 @@ void Networking::connectToNetwork(const Network n) {
   if (wifi->isKnownConnection(n.ssid)) {
     wifi->activateWifiConnection(n.ssid);
   } else if (n.security_type == SecurityType::OPEN) {
-    wifi->connect(n, false);
+    wifi->connect(n);
   } else if (n.security_type == SecurityType::WPA) {
     QString pass = InputDialog::getText(tr("Enter password"), this, tr("for \"%1\"").arg(QString::fromUtf8(n.ssid)), true, 8);
     if (!pass.isEmpty()) {
-      wifi->connect(n, false, pass);
+      wifi->connect(n, pass);
     }
   }
 }
@@ -100,7 +96,7 @@ void Networking::wrongPassword(const QString &ssid) {
     const Network &n = wifi->seenNetworks.value(ssid);
     QString pass = InputDialog::getText(tr("Wrong password"), this, tr("for \"%1\"").arg(QString::fromUtf8(n.ssid)), true, 8);
     if (!pass.isEmpty()) {
-      wifi->connect(n, false, pass);
+      wifi->connect(n, pass);
     }
   }
 }
@@ -149,6 +145,10 @@ AdvancedNetworking::AdvancedNetworking(QWidget* parent, WifiManager* wifi): QWid
   ipLabel = new LabelControl(tr("IP Address"), wifi->ipv4_address);
   list->addItem(ipLabel);
 
+  // SSH keys
+  list->addItem(new SshToggle());
+  list->addItem(new SshControl());
+
   // Roaming toggle
   const bool roamingEnabled = params.getBool("GsmRoaming");
   roamingToggle = new ToggleControl(tr("Enable Roaming"), "", "", roamingEnabled);
@@ -192,9 +192,9 @@ AdvancedNetworking::AdvancedNetworking(QWidget* parent, WifiManager* wifi): QWid
       hidden_network.ssid = ssid.toUtf8();
       if (!pass.isEmpty()) {
         hidden_network.security_type = SecurityType::WPA;
-        wifi->connect(hidden_network, true, pass);
+        wifi->connect(hidden_network, pass);
       } else {
-        wifi->connect(hidden_network, true);
+        wifi->connect(hidden_network);
       }
       emit requestWifiScreen();
     }
@@ -204,14 +204,15 @@ AdvancedNetworking::AdvancedNetworking(QWidget* parent, WifiManager* wifi): QWid
   // Set initial config
   wifi->updateGsmSettings(roamingEnabled, QString::fromStdString(params.get("GsmApn")), metered);
 
+  connect(uiState(), &UIState::primeTypeChanged, this, [=](PrimeType prime_type) {
+    bool gsmVisible = prime_type == PrimeType::NONE || prime_type == PrimeType::LITE;
+    roamingToggle->setVisible(gsmVisible);
+    editApnButton->setVisible(gsmVisible);
+    meteredToggle->setVisible(gsmVisible);
+  });
+
   main_layout->addWidget(new ScrollView(list, this));
   main_layout->addStretch(1);
-}
-
-void AdvancedNetworking::setGsmVisible(bool visible) {
-  roamingToggle->setVisible(visible);
-  editApnButton->setVisible(visible);
-  meteredToggle->setVisible(visible);
 }
 
 void AdvancedNetworking::refresh() {

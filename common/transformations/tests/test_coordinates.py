@@ -1,4 +1,7 @@
+#!/usr/bin/env python3
+
 import numpy as np
+import unittest
 
 import openpilot.common.transformations.coordinates as coord
 
@@ -41,7 +44,7 @@ ned_offsets_batch = np.array([[  53.88103168,   43.83445935,  -46.27488057],
                               [  78.56272609,   18.53100158,  -43.25290759]])
 
 
-class TestNED:
+class TestNED(unittest.TestCase):
   def test_small_distances(self):
     start_geodetic = np.array([33.8042184, -117.888593, 0.0])
     local_coord = coord.LocalCoord.from_geodetic(start_geodetic)
@@ -51,13 +54,13 @@ class TestNED:
 
     west_geodetic = start_geodetic + [0, -0.0005, 0]
     west_ned = local_coord.geodetic2ned(west_geodetic)
-    assert np.abs(west_ned[0]) < 1e-3
-    assert west_ned[1] < 0
+    self.assertLess(np.abs(west_ned[0]), 1e-3)
+    self.assertLess(west_ned[1], 0)
 
     southwest_geodetic = start_geodetic + [-0.0005, -0.002, 0]
     southwest_ned = local_coord.geodetic2ned(southwest_geodetic)
-    assert southwest_ned[0] < 0
-    assert southwest_ned[1] < 0
+    self.assertLess(southwest_ned[0], 0)
+    self.assertLess(southwest_ned[1], 0)
 
   def test_ecef_geodetic(self):
     # testing single
@@ -102,3 +105,5 @@ class TestNED:
     np.testing.assert_allclose(converter.ned2ecef(ned_offsets_batch),
                                                            ecef_positions_offset_batch,
                                                            rtol=1e-9, atol=1e-7)
+if __name__ == "__main__":
+  unittest.main()

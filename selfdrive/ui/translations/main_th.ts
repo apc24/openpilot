@@ -68,23 +68,46 @@
     </message>
     <message>
         <source>Hidden Network</source>
-        <translation>เครือข่ายที่ซ่อนอยู่</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>CONNECT</source>
-        <translation>เชื่อมต่อ</translation>
+        <translation type="unfinished">เชื่อมต่อ</translation>
     </message>
     <message>
         <source>Enter SSID</source>
-        <translation>ป้อนค่า SSID</translation>
+        <translation type="unfinished">ป้อนค่า SSID</translation>
     </message>
     <message>
         <source>Enter password</source>
-        <translation>ใส่รหัสผ่าน</translation>
+        <translation type="unfinished">ใส่รหัสผ่าน</translation>
     </message>
     <message>
         <source>for &quot;%1&quot;</source>
-        <translation>สำหรับ &quot;%1&quot;</translation>
+        <translation type="unfinished">สำหรับ &quot;%1&quot;</translation>
+    </message>
+</context>
+<context>
+    <name>AnnotatedCameraWidget</name>
+    <message>
+        <source>km/h</source>
+        <translation>กม./ชม.</translation>
+    </message>
+    <message>
+        <source>mph</source>
+        <translation>ไมล์/ชม.</translation>
+    </message>
+    <message>
+        <source>MAX</source>
+        <translation>สูงสุด</translation>
+    </message>
+    <message>
+        <source>SPEED</source>
+        <translation>ความเร็ว</translation>
+    </message>
+    <message>
+        <source>LIMIT</source>
+        <translation>จำกัด</translation>
     </message>
 </context>
 <context>
@@ -114,34 +137,30 @@
     </message>
 </context>
 <context>
-    <name>DeveloperPanel</name>
+    <name>DestinationWidget</name>
     <message>
-        <source>Joystick Debug Mode</source>
-        <translation>โหมดดีบักจอยสติ๊ก</translation>
+        <source>Home</source>
+        <translation>บ้าน</translation>
     </message>
     <message>
-        <source>Longitudinal Maneuver Mode</source>
-        <translation>โหมดการควบคุมการเร่ง/เบรค</translation>
+        <source>Work</source>
+        <translation>ที่ทำงาน</translation>
     </message>
     <message>
-        <source>openpilot Longitudinal Control (Alpha)</source>
-        <translation>ระบบควบคุมการเร่ง/เบรคโดย openpilot (Alpha)</translation>
+        <source>No destination set</source>
+        <translation>ยังไม่ได้เลือกจุดหมาย</translation>
     </message>
     <message>
-        <source>WARNING: openpilot longitudinal control is in alpha for this car and will disable Automatic Emergency Braking (AEB).</source>
-        <translation>คำเตือน: การควบคุมการเร่ง/เบรคโดย openpilot สำหรับรถคันนี้ยังอยู่ในสถานะ alpha และระบบเบรคฉุกเฉินอัตโนมัติ (AEB) จะถูกปิด</translation>
+        <source>home</source>
+        <translation>บ้าน</translation>
     </message>
     <message>
-        <source>On this car, openpilot defaults to the car&apos;s built-in ACC instead of openpilot&apos;s longitudinal control. Enable this to switch to openpilot longitudinal control. Enabling Experimental mode is recommended when enabling openpilot longitudinal control alpha.</source>
-        <translation>โดยปกติสำหรับรถคันนี้ openpilot จะควบคุมการเร่ง/เบรคด้วยระบบ ACC จากโรงงาน แทนการควยคุมโดย openpilot เปิดสวิตซ์นี้เพื่อให้ openpilot ควบคุมการเร่ง/เบรค แนะนำให้เปิดโหมดทดลองเมื่อต้องการให้ openpilot ควบคุมการเร่ง/เบรค ซึ่งอยู่ในสถานะ alpha</translation>
+        <source>work</source>
+        <translation>ที่ทำงาน</translation>
     </message>
     <message>
-        <source>Enable ADB</source>
-        <translation>เปิด ADB</translation>
-    </message>
-    <message>
-        <source>ADB (Android Debug Bridge) allows connecting to your device over USB or over the network. See https://docs.comma.ai/how-to/connect-to-comma for more info.</source>
-        <translation>ADB (Android Debug Bridge) อนุญาตให้เชื่อมต่ออุปกรณ์ของคุณผ่าน USB หรือผ่านเครือข่าย ดูข้อมูลเพิ่มเติมที่ https://docs.comma.ai/how-to/connect-to-comma</translation>
+        <source>No %1 location set</source>
+        <translation>ยังไม่ได้เลือกตำแหน่ง%1</translation>
     </message>
 </context>
 <context>
@@ -274,18 +293,6 @@
         <source>Review</source>
         <translation>ทบทวน</translation>
     </message>
-    <message>
-        <source>Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer.</source>
-        <translation>จับคู่อุปกรณ์ของคุณกับ comma connect (connect.comma.ai) และรับข้อเสนอ comma prime ของคุณ</translation>
-    </message>
-    <message>
-        <source>Pair Device</source>
-        <translation>จับคู่อุปกรณ์</translation>
-    </message>
-    <message>
-        <source>PAIR</source>
-        <translation>จับคู่</translation>
-    </message>
 </context>
 <context>
     <name>DriverViewWindow</name>
@@ -306,58 +313,6 @@
     </message>
 </context>
 <context>
-    <name>FirehosePanel</name>
-    <message>
-        <source>🔥 Firehose Mode 🔥</source>
-        <translation>🔥 โหมดสายยางดับเพลิง 🔥</translation>
-    </message>
-    <message>
-        <source>openpilot learns to drive by watching humans, like you, drive.
-
-Firehose Mode allows you to maximize your training data uploads to improve openpilot&apos;s driving models. More data means bigger models, which means better Experimental Mode.</source>
-        <translation>openpilot เรียนรู้วิธีขับรถจากการเฝ้าดูการขับขี่ของมนุษย์เช่นคุณ
-
-โหมดสายยางดับเพลิงช่วยให้คุณอัปโหลดข้อมูลการฝึกฝนได้มากที่สุด เพื่อนำไปพัฒนาโมเดลการขับขี่ของ openpilot ข้อมูลที่มากขึ้นหมายถึงโมเดลที่ใหญ่ขึ้น และนั่นหมายถึงโหมดทดลองที่ดีขึ้น</translation>
-    </message>
-    <message>
-        <source>Firehose Mode: ACTIVE</source>
-        <translation>โหมดสายยางดับเพลิง: เปิดใช้งาน</translation>
-    </message>
-    <message>
-        <source>ACTIVE</source>
-        <translation>เปิดใช้งาน</translation>
-    </message>
-    <message>
-        <source>For maximum effectiveness, bring your device inside and connect to a good USB-C adapter and Wi-Fi weekly.&lt;br&gt;&lt;br&gt;Firehose Mode can also work while you&apos;re driving if connected to a hotspot or unlimited SIM card.&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Frequently Asked Questions&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;Does it matter how or where I drive?&lt;/i&gt; Nope, just drive as you normally would.&lt;br&gt;&lt;br&gt;&lt;i&gt;Do all of my segments get pulled in Firehose Mode?&lt;/i&gt; No, we selectively pull a subset of your segments.&lt;br&gt;&lt;br&gt;&lt;i&gt;What&apos;s a good USB-C adapter?&lt;/i&gt; Any fast phone or laptop charger should be fine.&lt;br&gt;&lt;br&gt;&lt;i&gt;Does it matter which software I run?&lt;/i&gt; Yes, only upstream openpilot (and particular forks) are able to be used for training.</source>
-        <translation>เพื่อประสิทธิภาพสูงสุด ควรนำอุปกรณ์เข้ามาข้างใน เชื่อมต่อกับอะแดปเตอร์ USB-C คุณภาพดี และ Wi-Fi สัปดาห์ละครั้ง&lt;br&gt;&lt;br&gt;โหมดสายยางดับเพลิงยังสามารถทำงานระหว่างขับรถได้ หากเชื่อมต่อกับฮอตสปอตหรือซิมการ์ดที่มีเน็ตไม่จำกัด&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;คำถามที่พบบ่อย&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;วิธีการขับหรือสถานที่ขับขี่มีผลหรือไม่?&lt;/i&gt;ไม่มีผล แค่ขับขี่ตามปกติของคุณ&lt;br&gt;&lt;br&gt;&lt;i&gt;เซกเมนต์ทั้งหมดของฉันจะถูกดึงข้อมูลในโหมดสายยางดับเพลิงหรือไม่?&lt;/i&gt;ไม่ใช่ เราจะเลือกดึงข้อมูลเพียงบางส่วนจากเซกเมนต์ของคุณ&lt;br&gt;&lt;br&gt;&lt;i&gt;อะแดปเตอร์ USB-C แบบไหนดี?&lt;/i&gt;ที่ชาร์จเร็วของโทรศัพท์หรือแล็ปท็อปแบบใดก็ได้ สามารถใช้ได้&lt;br&gt;&lt;br&gt;&lt;i&gt;ซอฟต์แวร์ที่ใช้มีผลหรือไม่?&lt;/i&gt;มีผล เฉพาะ openpilot ตัวหลัก (และ fork เฉพาะบางตัว) เท่านั้น ที่สามารถนำข้อมูลไปใช้ฝึกฝนโมเดลได้</translation>
-    </message>
-    <message numerus="yes">
-        <source>&lt;b&gt;%n segment(s)&lt;/b&gt; of your driving is in the training dataset so far.</source>
-        <translation>
-            <numerusform>มีการขับขี่ของคุณ &lt;b&gt;%n เซกเมนต์&lt;/b&gt; อยู่ในชุดข้อมูลการฝึกฝนแล้วในขณะนี้</numerusform>
-        </translation>
-    </message>
-    <message>
-        <source>&lt;span stylesheet=&apos;font-size: 60px; font-weight: bold; color: #e74c3c;&apos;&gt;INACTIVE&lt;/span&gt;: connect to an unmetered network</source>
-        <translation>&lt;span stylesheet=&apos;font-size: 60px; font-weight: bold; color: #e74c3c;&apos;&gt;ไม่เปิดใช้งาน&lt;/span&gt;: เชื่อมต่อกับเครือข่ายที่ไม่จำกัดข้อมูล</translation>
-    </message>
-</context>
-<context>
-    <name>HudRenderer</name>
-    <message>
-        <source>km/h</source>
-        <translation>กม./ชม.</translation>
-    </message>
-    <message>
-        <source>mph</source>
-        <translation>ไมล์/ชม.</translation>
-    </message>
-    <message>
-        <source>MAX</source>
-        <translation>สูงสุด</translation>
-    </message>
-</context>
-<context>
     <name>InputDialog</name>
     <message>
         <source>Cancel</source>
@@ -375,6 +330,47 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     <message>
         <source>Installing...</source>
         <translation>กำลังติดตั้ง...</translation>
+    </message>
+</context>
+<context>
+    <name>MapETA</name>
+    <message>
+        <source>eta</source>
+        <translation>eta</translation>
+    </message>
+    <message>
+        <source>min</source>
+        <translation>นาที</translation>
+    </message>
+    <message>
+        <source>hr</source>
+        <translation>ชม.</translation>
+    </message>
+</context>
+<context>
+    <name>MapSettings</name>
+    <message>
+        <source>NAVIGATION</source>
+        <translation>การนำทาง</translation>
+    </message>
+    <message>
+        <source>Manage at connect.comma.ai</source>
+        <translation>จัดการได้ที่ connect.comma.ai</translation>
+    </message>
+</context>
+<context>
+    <name>MapWindow</name>
+    <message>
+        <source>Map Loading</source>
+        <translation>กำลังโหลดแผนที่</translation>
+    </message>
+    <message>
+        <source>Waiting for GPS</source>
+        <translation>กำลังรอสัญญาณ GPS</translation>
+    </message>
+    <message>
+        <source>Waiting for route</source>
+        <translation>กำลังรอเส้นทาง</translation>
     </message>
 </context>
 <context>
@@ -428,6 +424,10 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
 %1</translation>
     </message>
     <message>
+        <source>Invalid date and time settings, system won&apos;t start. Connect to internet to set time.</source>
+        <translation>วันที่และเวลาไม่ถูกต้อง ระบบจะไม่เริ่มทำงาน เชื่อต่ออินเตอร์เน็ตเพื่อตั้งเวลา</translation>
+    </message>
+    <message>
         <source>Taking camera snapshots. System won&apos;t start until finished.</source>
         <translation>กล้องกำลังถ่ายภาพ ระบบจะไม่เริ่มทำงานจนกว่าจะเสร็จ</translation>
     </message>
@@ -452,6 +452,10 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         <translation>openpilot ไม่สามารถระบุรถยนต์ของคุณได้ ระบบอาจไม่รองรับรถยนต์ของคุณหรือไม่รู้จัก ECU กรุณาส่ง pull request เพื่อเพิ่มรุ่นของเฟิร์มแวร์ให้กับรถยนต์ที่เหมาะสม หากต้องการความช่วยเหลือให้เข้าร่วม discord.comma.ai</translation>
     </message>
     <message>
+        <source>openpilot was unable to identify your car. Check integrity of cables and ensure all connections are secure, particularly that the comma power is fully inserted in the OBD-II port of the vehicle. Need help? Join discord.comma.ai.</source>
+        <translation>openpilot ไม่สามารถระบุรถยนต์ของคุณได้ กรุณาตรวจสอบสายเคเบิ้ลและจุดเชื่อมต่อทั้งหมดว่าแน่นหนา โดยเฉพาะ comma power ว่าได้ดันเข้าไปยังพอร์ต OBD II ของรถยนต์จนสุด หากต้องการความช่วยเหลือให้เข้าร่วม discord.comma.ai</translation>
+    </message>
+    <message>
         <source>openpilot detected a change in the device&apos;s mounting position. Ensure the device is fully seated in the mount and the mount is firmly secured to the windshield.</source>
         <translation>openpilot ตรวจพบการเปลี่ยนแปลงของตำแหน่งที่ติดตั้ง กรุณาตรวจสอบว่าได้เลื่อนอุปกรณ์เข้ากับจุดติดตั้งจนสุดแล้ว และจุดติดตั้งได้ยึดติดกับกระจกหน้าอย่างแน่นหนา</translation>
     </message>
@@ -472,29 +476,6 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
 </context>
 <context>
-    <name>OnroadAlerts</name>
-    <message>
-        <source>openpilot Unavailable</source>
-        <translation>openpilot ไม่สามารถใช้งานได้</translation>
-    </message>
-    <message>
-        <source>TAKE CONTROL IMMEDIATELY</source>
-        <translation>เข้าควบคุมรถเดี๋ยวนี้</translation>
-    </message>
-    <message>
-        <source>Reboot Device</source>
-        <translation>รีบูตอุปกรณ์</translation>
-    </message>
-    <message>
-        <source>Waiting to start</source>
-        <translation>รอเริ่มทำงาน</translation>
-    </message>
-    <message>
-        <source>System Unresponsive</source>
-        <translation>ระบบไม่ตอบสนอง</translation>
-    </message>
-</context>
-<context>
     <name>PairingPopup</name>
     <message>
         <source>Pair your device to your comma account</source>
@@ -511,10 +492,6 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     <message>
         <source>Bookmark connect.comma.ai to your home screen to use it like an app</source>
         <translation>จดจำ connect.comma.ai โดยการเพิ่มไปยังหน้าจอโฮม เพื่อใช้งานเหมือนเป็นแอปพลิเคชัน</translation>
-    </message>
-    <message>
-        <source>Please connect to Wi-Fi to complete initial pairing</source>
-        <translation>กรุณาเชื่อมต่อ Wi-Fi เพื่อทำการจับคู่ครั้งแรกให้เสร็จสิ้น</translation>
     </message>
 </context>
 <context>
@@ -555,8 +532,8 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         <translation>จัดเก็บข้อมูลการขับขี่นาน 1 ปี</translation>
     </message>
     <message>
-        <source>Remote snapshots</source>
-        <translation>ภาพถ่ายระยะไกล</translation>
+        <source>Turn-by-turn navigation</source>
+        <translation>การนำทางแบบเลี้ยวต่อเลี้ยว</translation>
     </message>
 </context>
 <context>
@@ -603,8 +580,20 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         </translation>
     </message>
     <message>
-        <source>now</source>
-        <translation>ตอนนี้</translation>
+        <source>km</source>
+        <translation>กม.</translation>
+    </message>
+    <message>
+        <source>m</source>
+        <translation>ม.</translation>
+    </message>
+    <message>
+        <source>mi</source>
+        <translation>ไมล์</translation>
+    </message>
+    <message>
+        <source>ft</source>
+        <translation>ฟุต</translation>
     </message>
 </context>
 <context>
@@ -645,7 +634,7 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>System reset triggered. Press confirm to erase all content and settings. Press cancel to resume boot.</source>
-        <translation>ระบบถูกรีเซ็ต กดยืนยันเพื่อลบข้อมูลและการตั้งค่าทั้งหมด กดยกเลิกเพื่อบูตต่อ</translation>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -669,14 +658,6 @@ This may take up to a minute.</source>
     <message>
         <source>Software</source>
         <translation>ซอฟต์แวร์</translation>
-    </message>
-    <message>
-        <source>Developer</source>
-        <translation>นักพัฒนา</translation>
-    </message>
-    <message>
-        <source>Firehose</source>
-        <translation>สายยางดับเพลิง</translation>
     </message>
 </context>
 <context>
@@ -761,18 +742,6 @@ This may take up to a minute.</source>
         <source>Select a language</source>
         <translation>เลือกภาษา</translation>
     </message>
-    <message>
-        <source>Choose Software to Install</source>
-        <translation>เลือกซอฟต์แวร์ที่จะติดตั้ง</translation>
-    </message>
-    <message>
-        <source>openpilot</source>
-        <translation>openpilot</translation>
-    </message>
-    <message>
-        <source>Custom Software</source>
-        <translation>ซอฟต์แวร์ที่กำหนดเอง</translation>
-    </message>
 </context>
 <context>
     <name>SetupWidget</name>
@@ -834,6 +803,14 @@ This may take up to a minute.</source>
     <message>
         <source>PANDA</source>
         <translation>PANDA</translation>
+    </message>
+    <message>
+        <source>GPS</source>
+        <translation>จีพีเอส</translation>
+    </message>
+    <message>
+        <source>SEARCH</source>
+        <translation>ค้นหา</translation>
     </message>
     <message>
         <source>--</source>
@@ -988,20 +965,20 @@ This may take up to a minute.</source>
 <context>
     <name>TermsPage</name>
     <message>
+        <source>Terms &amp; Conditions</source>
+        <translation>ข้อตกลงและเงื่อนไข</translation>
+    </message>
+    <message>
         <source>Decline</source>
         <translation>ปฏิเสธ</translation>
     </message>
     <message>
+        <source>Scroll to accept</source>
+        <translation>เลื่อนเพื่อตอบรับข้อตกลง</translation>
+    </message>
+    <message>
         <source>Agree</source>
         <translation>ยอมรับ</translation>
-    </message>
-    <message>
-        <source>Welcome to openpilot</source>
-        <translation>ยินดีต้อนรับสู่ openpilot</translation>
-    </message>
-    <message>
-        <source>You must accept the Terms and Conditions to use openpilot. Read the latest terms at &lt;span style=&apos;color: #465BEA;&apos;&gt;https://comma.ai/terms&lt;/span&gt; before continuing.</source>
-        <translation>คุณต้องยอมรับข้อกำหนดและเงื่อนไขเพื่อใช้งาน openpilot อ่านข้อกำหนดล่าสุดได้ที่ &lt;span style=&apos;color: #465BEA;&apos;&gt;https://comma.ai/terms&lt;/span&gt; ก่อนดำเนินการต่อ</translation>
     </message>
 </context>
 <context>
@@ -1047,6 +1024,22 @@ This may take up to a minute.</source>
         <translation>เมื่อเปิดใช้งาน การกดแป้นคันเร่งจะเป็นการยกเลิกระบบช่วยขับโดย openpilot</translation>
     </message>
     <message>
+        <source>Show ETA in 24h Format</source>
+        <translation>แสดงเวลา ETA ในรูปแบบ 24 ชั่วโมง</translation>
+    </message>
+    <message>
+        <source>Use 24h format instead of am/pm</source>
+        <translation>ใช้รูปแบบเวลา 24 ชั่วโมง แทน am/pm</translation>
+    </message>
+    <message>
+        <source>Show Map on Left Side of UI</source>
+        <translation>แสดงแผนที่ที่ด้านซ้ายของหน้าจอ</translation>
+    </message>
+    <message>
+        <source>Show map on left side when in split screen view.</source>
+        <translation>แสดงแผนที่ด้านซ้ายของหน้าจอเมื่ออยู่ในโหมดแบ่งหน้าจอ</translation>
+    </message>
+    <message>
         <source>Experimental Mode</source>
         <translation>โหมดทดลอง</translation>
     </message>
@@ -1071,6 +1064,18 @@ This may take up to a minute.</source>
         <translation>ระบบควบคุมการเร่ง/เบรคโดย openpilot อาจมาในการอัปเดตในอนาคต</translation>
     </message>
     <message>
+        <source>openpilot Longitudinal Control (Alpha)</source>
+        <translation>ระบบควบคุมการเร่ง/เบรคโดย openpilot (Alpha)</translation>
+    </message>
+    <message>
+        <source>WARNING: openpilot longitudinal control is in alpha for this car and will disable Automatic Emergency Braking (AEB).</source>
+        <translation>คำเตือน: การควบคุมการเร่ง/เบรคโดย openpilot สำหรับรถคันนี้ยังอยู่ในสถานะ alpha และระบบเบรคฉุกเฉินอัตโนมัติ (AEB) จะถูกปิด</translation>
+    </message>
+    <message>
+        <source>On this car, openpilot defaults to the car&apos;s built-in ACC instead of openpilot&apos;s longitudinal control. Enable this to switch to openpilot longitudinal control. Enabling Experimental mode is recommended when enabling openpilot longitudinal control alpha.</source>
+        <translation>โดยปกติสำหรับรถคันนี้ openpilot จะควบคุมการเร่ง/เบรคด้วยระบบ ACC จากโรงงาน แทนการควยคุมโดย openpilot เปิดสวิตซ์นี้เพื่อให้ openpilot ควบคุมการเร่ง/เบรค แนะนำให้เปิดโหมดทดลองเมื่อต้องการให้ openpilot ควบคุมการเร่ง/เบรค ซึ่งอยู่ในสถานะ alpha</translation>
+    </message>
+    <message>
         <source>Aggressive</source>
         <translation>ดุดัน</translation>
     </message>
@@ -1087,6 +1092,10 @@ This may take up to a minute.</source>
         <translation>บุคลิกการขับขี่</translation>
     </message>
     <message>
+        <source>Standard is recommended. In aggressive mode, openpilot will follow lead cars closer and be more aggressive with the gas and brake. In relaxed mode openpilot will stay further away from lead cars.</source>
+        <translation>แนะนำให้ใช้แบบมาตรฐาน ในโหมดดุดัน openpilot จะตามรถคันหน้าใกล้ขึ้นและเร่งและเบรคแบบดุดันมากขึ้น ในโหมดผ่อนคลาย openpilot จะอยู่ห่างจากรถคันหน้ามากขึ้น</translation>
+    </message>
+    <message>
         <source>An alpha version of openpilot longitudinal control can be tested, along with Experimental mode, on non-release branches.</source>
         <translation>ระบบควบคุมการเร่ง/เบรคโดย openpilot เวอร์ชัน alpha สามารถทดสอบได้พร้อมกับโหมดการทดลอง บน branch ที่กำลังพัฒนา</translation>
     </message>
@@ -1095,24 +1104,20 @@ This may take up to a minute.</source>
         <translation>ควบคุมเร่ง/เบรคแบบ End-to-End</translation>
     </message>
     <message>
+        <source>Navigate on openpilot</source>
+        <translation>การนำทางบน openpilot</translation>
+    </message>
+    <message>
+        <source>When navigation has a destination, openpilot will input the map information into the model. This provides useful context for the model and allows openpilot to keep left or right appropriately at forks/exits. Lane change behavior is unchanged and still activated by the driver. This is an alpha quality feature; mistakes should be expected, particularly around exits and forks. These mistakes can include unintended laneline crossings, late exit taking, driving towards dividing barriers in the gore areas, etc.</source>
+        <translation>เมื่อการนำทางมีจุดหมายปลายทาง openpilot จะป้อนข้อมูลแผนที่เข้าไปยังโมเดล ซึ่งจะเป็นบริบทที่มีประโยชน์สำหรับโมเดลและจะทำให้ openpilot สามารถรักษาเลนซ้ายหรือขวาได้อย่างเหมาะสมบริเวณทางแยกหรือทางออก พฤติกรรมการเปลี่ยนเลนยังคงเหมือนเดิมและยังคงต้องถูกเริ่มโดยคนขับ ความสามารถนี้ยังอยู่ในระดับ alpha ซึ่งอาจะเกิดความผิดพลาดได้โดยเฉพาะบริเวณทางแยกหรือทางออก ความผิดพลาดที่อาจเกิดขึ้นได้อาจรวมถึงการข้ามเส้นแบ่งเลนโดยไม่ตั้งใจ, การเข้าช่องทางออกช้ากว่าปกติ, การขับเข้าหาแบริเออร์ในเขตปลอดภัย, ฯลฯ</translation>
+    </message>
+    <message>
+        <source>The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns. The Experimental mode logo will also be shown in the top right corner. When a navigation destination is set and the driving model is using it as input, the driving path on the map will turn green.</source>
+        <translation>การแสดงภาพการขับขี่จะเปลี่ยนไปใช้กล้องมุมกว้างที่หันหน้าไปทางถนนเมื่ออยู่ในความเร็วต่ำ เพื่อแสดงภาพการเลี้ยวที่ดีขึ้น โลโก้โหมดการทดลองจะแสดงที่มุมบนขวาด้วย เมื่อเป้าหมายการนำทางถูกเลือกและโมเดลการขับขี่กำลังใช้เป็นอินพุต เส้นทางการขับขี่บนแผนที่จะเปลี่ยนเป็นสีเขียว</translation>
+    </message>
+    <message>
         <source>Enable the openpilot longitudinal control (alpha) toggle to allow Experimental mode.</source>
         <translation>เปิดระบบควบคุมการเร่ง/เบรคโดย openpilot (alpha) เพื่อเปิดใช้งานโหมดทดลอง</translation>
-    </message>
-    <message>
-        <source>Standard is recommended. In aggressive mode, openpilot will follow lead cars closer and be more aggressive with the gas and brake. In relaxed mode openpilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with your steering wheel distance button.</source>
-        <translation>แนะนำให้ใช้แบบมาตรฐาน ในโหมดดุดัน openpilot จะตามรถคันหน้าใกล้ขึ้นและเร่งและเบรคแบบดุดันมากขึ้น ในโหมดผ่อนคลาย openpilot จะอยู่ห่างจากรถคันหน้ามากขึ้น ในรถรุ่นที่รองรับคุณสามารถเปลี่ยนบุคลิกไปแบบต่าง ๆ โดยใช้ปุ่มปรับระยะห่างบนพวงมาลัย</translation>
-    </message>
-    <message>
-        <source>The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns. The Experimental mode logo will also be shown in the top right corner.</source>
-        <translation>การแสดงภาพการขับขี่จะเปลี่ยนไปใช้กล้องมุมกว้างที่หันหน้าไปทางถนนเมื่ออยู่ในความเร็วต่ำ เพื่อแสดงภาพการเลี้ยวที่ดีขึ้น โลโก้โหมดการทดลองจะแสดงที่มุมบนขวาด้วย</translation>
-    </message>
-    <message>
-        <source>Always-On Driver Monitoring</source>
-        <translation>การเฝ้าระวังผู้ขับขี่ตลอดเวลา</translation>
-    </message>
-    <message>
-        <source>Enable driver monitoring even when openpilot is not engaged.</source>
-        <translation>เปิดใช้งานการเฝ้าระวังผู้ขับขี่แม้เมื่อ openpilot ไม่ได้เข้าควบคุมอยู่</translation>
     </message>
 </context>
 <context>
@@ -1153,16 +1158,24 @@ This may take up to a minute.</source>
 <context>
     <name>WiFiPromptWidget</name>
     <message>
-        <source>Open</source>
-        <translation>เปิด</translation>
+        <source>Setup Wi-Fi</source>
+        <translation>ตั้งค่า Wi-Fi</translation>
     </message>
     <message>
-        <source>Maximize your training data uploads to improve openpilot&apos;s driving models.</source>
-        <translation>อัปโหลดข้อมูลการฝึกฝนให้ได้มากที่สุด เพื่อพัฒนาโมเดลการขับขี่ของ openpilot</translation>
+        <source>Connect to Wi-Fi to upload driving data and help improve openpilot</source>
+        <translation>เชื่อมต่อกับ Wi-Fi เพื่ออัปโหลดข้อมูลการขับขี่และช่วยปรับปรุง openpilot</translation>
     </message>
     <message>
-        <source>&lt;span style=&apos;font-family: &quot;Noto Color Emoji&quot;;&apos;&gt;🔥&lt;/span&gt; Firehose Mode &lt;span style=&apos;font-family: Noto Color Emoji;&apos;&gt;🔥&lt;/span&gt;</source>
-        <translation>&lt;span style=&apos;font-family: &quot;Noto Color Emoji&quot;;&apos;&gt;🔥&lt;/span&gt; โหมดสายยางดับเพลิง &lt;span style=&apos;font-family: Noto Color Emoji;&apos;&gt;🔥&lt;/span&gt;</translation>
+        <source>Open Settings</source>
+        <translation>เปิดการตั้งค่า</translation>
+    </message>
+    <message>
+        <source>Ready to upload</source>
+        <translation>พร้อมจะอัปโหลด</translation>
+    </message>
+    <message>
+        <source>Training data will be pulled periodically while your device is on Wi-Fi</source>
+        <translation>ข้อมูลการฝึกฝนจะถูกดึงเป็นระยะระหว่างที่อุปกรณ์ของคุณเชื่อมต่อกับ Wi-Fi</translation>
     </message>
 </context>
 <context>

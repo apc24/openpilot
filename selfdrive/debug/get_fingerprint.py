@@ -4,7 +4,7 @@
 
 # Instructions:
 # - connect to a Panda
-# - run selfdrive/pandad/pandad
+# - run selfdrive/boardd/boardd
 # - launching this script
 #   Note: it's very important that the car is in stock mode, in order to collect a complete fingerprint
 # - since some messages are published at low frequency, keep this script running for at least 30s,
@@ -25,7 +25,7 @@ while True:
     if c.src % 0x80 == 0 and c.address < 0x800 and c.address not in (0x7df, 0x7e0, 0x7e8):
       msgs[c.address] = len(c.dat)
 
-  fingerprint = ', '.join(f"{v[0]}: {v[1]}" for v in sorted(msgs.items()))
+  fingerprint = ', '.join("%d: %d" % v for v in sorted(msgs.items()))
 
   print(f"number of messages {len(msgs)}:")
   print(f"fingerprint {fingerprint}")

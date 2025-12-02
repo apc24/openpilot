@@ -3,6 +3,7 @@ import sys
 import time
 import datetime
 import numpy as np
+from typing import List
 from collections import deque
 
 from openpilot.common.realtime import Ratekeeper
@@ -13,7 +14,7 @@ def read_power():
   with open("/sys/bus/i2c/devices/0-0040/hwmon/hwmon1/power1_input") as f:
     return int(f.read()) / 1e6
 
-def sample_power(seconds=5) -> list[float]:
+def sample_power(seconds=5) -> List[float]:
   rate = 123
   rk = Ratekeeper(rate, print_delay_threshold=None)
 

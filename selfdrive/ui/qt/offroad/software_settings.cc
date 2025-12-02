@@ -17,7 +17,7 @@
 
 
 void SoftwarePanel::checkForUpdates() {
-  std::system("pkill -SIGUSR1 -f system.updated.updated");
+  std::system("pkill -SIGUSR1 -f selfdrive.updated");
 }
 
 SoftwarePanel::SoftwarePanel(QWidget* parent) : ListWidget(parent) {
@@ -36,7 +36,7 @@ SoftwarePanel::SoftwarePanel(QWidget* parent) : ListWidget(parent) {
     if (downloadBtn->text() == tr("CHECK")) {
       checkForUpdates();
     } else {
-      std::system("pkill -SIGHUP -f system.updated.updated");
+      std::system("pkill -SIGHUP -f selfdrive.updated");
     }
   });
   addItem(downloadBtn);
@@ -54,7 +54,7 @@ SoftwarePanel::SoftwarePanel(QWidget* parent) : ListWidget(parent) {
   connect(targetBranchBtn, &ButtonControl::clicked, [=]() {
     auto current = params.get("GitBranch");
     QStringList branches = QString::fromStdString(params.get("UpdaterAvailableBranches")).split(",");
-    for (QString b : {current.c_str(), "devel-staging", "devel", "nightly", "nightly-dev", "master"}) {
+    for (QString b : {current.c_str(), "devel-staging", "devel", "nightly", "master-ci", "master"}) {
       auto i = branches.indexOf(b);
       if (i >= 0) {
         branches.removeAt(i);

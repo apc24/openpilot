@@ -9,7 +9,6 @@ Most development happens on normal Ubuntu workstations, and not in cars or direc
 ```bash
 # get the latest stuff
 git pull
-git lfs pull
 git submodule update --init --recursive
 
 # update dependencies
@@ -23,11 +22,21 @@ scons -j8 selfdrive/ui/
 cd selfdrive/ui/ && scons -u -j8
 
 # test everything
-pytest
+pytest .
 
 # test just logging services
 cd system/loggerd && pytest .
 
 # run the linter
-op lint
+pre-commit run --all
 ```
+
+## Testing
+
+### Automated Testing
+
+All PRs and commits are automatically checked by GitHub Actions. Check out `.github/workflows/` for what GitHub Actions runs. Any new tests should be added to GitHub Actions.
+
+### Code Style and Linting
+
+Code is automatically checked for style by GitHub Actions as part of the automated tests. You can also run these tests yourself by running `pre-commit run --all`.

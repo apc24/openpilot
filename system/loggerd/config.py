@@ -9,7 +9,7 @@ STATS_DIR_FILE_LIMIT = 10000
 STATS_SOCKET = "ipc:///tmp/stats"
 STATS_FLUSH_TIME_S = 60
 
-def get_available_percent(default: float) -> float:
+def get_available_percent(default=None):
   try:
     statvfs = os.statvfs(Paths.log_root())
     available_percent = 100.0 * statvfs.f_bavail / statvfs.f_blocks
@@ -19,7 +19,7 @@ def get_available_percent(default: float) -> float:
   return available_percent
 
 
-def get_available_bytes(default: int) -> int:
+def get_available_bytes(default=None):
   try:
     statvfs = os.statvfs(Paths.log_root())
     available_bytes = statvfs.f_bavail * statvfs.f_frsize

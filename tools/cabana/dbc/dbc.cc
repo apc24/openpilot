@@ -45,7 +45,6 @@ cabana::Msg &cabana::Msg::operator=(const cabana::Msg &other) {
   name = other.name;
   size = other.size;
   comment = other.comment;
-  transmitter = other.transmitter;
 
   for (auto s : sigs) delete s;
   sigs.clear();
@@ -143,7 +142,7 @@ void cabana::Signal::update() {
   precision = std::max(num_decimals(factor), num_decimals(offset));
 }
 
-QString cabana::Signal::formatValue(double value, bool with_unit) const {
+QString cabana::Signal::formatValue(double value) const {
   // Show enum string
   int64_t raw_value = round((value - offset) / factor);
   for (const auto &[val, desc] : val_desc) {
@@ -153,7 +152,7 @@ QString cabana::Signal::formatValue(double value, bool with_unit) const {
   }
 
   QString val_str = QString::number(value, 'f', precision);
-  if (with_unit && !unit.isEmpty()) {
+  if (!unit.isEmpty()) {
     val_str += " " + unit;
   }
   return val_str;

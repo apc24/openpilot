@@ -61,7 +61,7 @@ QString timeAgo(const QDateTime &date) {
 
   QString s;
   if (diff < 60) {
-    s = QObject::tr("now");
+    s = "now";
   } else if (diff < 60 * 60) {
     int minutes = diff / 60;
     s = QObject::tr("%n minute(s) ago", "", minutes);
@@ -105,21 +105,20 @@ void initApp(int argc, char *argv[], bool disable_hidpi) {
   std::signal(SIGINT, sigTermHandler);
   std::signal(SIGTERM, sigTermHandler);
 
-  QString app_dir;
-#ifdef __APPLE__
-  // Get the devicePixelRatio, and scale accordingly to maintain 1:1 rendering
-  QApplication tmp(argc, argv);
-  app_dir = QCoreApplication::applicationDirPath();
   if (disable_hidpi) {
-    qputenv("QT_SCALE_FACTOR", QString::number(1.0 / tmp.devicePixelRatio()).toLocal8Bit());
-  }
-#else
-  app_dir = QFileInfo(util::readlink("/proc/self/exe").c_str()).path();
+#ifdef __APPLE__
+    // Get the devicePixelRatio, and scale accordingly to maintain 1:1 rendering
+    QApplication tmp(argc, argv);
+    qputenv("QT_SCALE_FACTOR", QString::number(1.0 / tmp.devicePixelRatio() ).toLocal8Bit());
 #endif
+  }
 
   qputenv("QT_DBL_CLICK_DIST", QByteArray::number(150));
+
   // ensure the current dir matches the exectuable's directory
-  QDir::setCurrent(app_dir);
+  QApplication tmp(argc, argv);
+  QString appDir = QCoreApplication::applicationDirPath();
+  QDir::setCurrent(appDir);
 
   setQtSurfaceFormat();
 }
@@ -153,6 +152,60 @@ QPixmap loadPixmap(const QString &fileName, const QSize &size, Qt::AspectRatioMo
     return QPixmap(fileName);
   } else {
     return QPixmap(fileName).scaled(size, aspectRatioMode, Qt::SmoothTransformation);
+  }
+}
+
+void drawRoundedRect(QPainter &painter, const QRectF &rect, qreal xRadiusTop, qreal yRadiusTop, qreal xRadiusBottom, qreal yRadiusBottom){
+  qreal w_2 = rect.width() / 2;
+  qreal h_2 = rect.height() / 2;
+
+  xRadiusTop = 100 * qMin(xRadiusTop, w_2) / w_2;
+  yRadiusTop = 100 * qMin(yRadiusTop, h_2) / h_2;
+
+  xRadiusBottom = 100 * qMin(xRadiusBottom, w_2) / w_2;
+  yRadiusBottom = 100 * qMin(yRadiusBottom, h_2) / h_2;
+
+  qreal x = rect.x();
+  qreal y = rect.y();
+  qreal w = rect.width();
+  qreal h = rect.height();
+
+  qreal rxx2Top = w*xRadiusTop/100;
+  qreal ryy2Top = h*yRadiusTop/100;
+
+  qreal rxx2Bottom = w*xRadiusBottom/100;
+  qreal ryy2Bottom = h*yRadiusBottom/100;
+
+  QPainterPath path;
+  path.arcMoveTo(x, y, rxx2Top, ryy2Top, 180);
+  path.arcTo(x, y, rxx2Top, ryy2Top, 180, -90);
+  path.arcTo(x+w-rxx2Top, y, rxx2Top, ryy2Top, 90, -90);
+  path.arcTo(x+w-rxx2Bottom, y+h-ryy2Bottom, rxx2Bottom, ryy2Bottom, 0, -90);
+  path.arcTo(x, y+h-ryy2Bottom, rxx2Bottom, ryy2Bottom, 270, -90);
+  path.closeSubpath();
+
+  painter.drawPath(path);
+}
+
+QColor interpColor(float xv, std::vector<float> xp, std::vector<QColor> fp) {
+  assert(xp.size() == fp.size());
+
+  int N = xp.size();
+  int hi = 0;
+
+  while (hi < N and xv > xp[hi]) hi++;
+  int low = hi - 1;
+
+  if (hi == N && xv > xp[low]) {
+    return fp[fp.size() - 1];
+  } else if (hi == 0){
+    return fp[0];
+  } else {
+    return QColor(
+      (xv - xp[low]) * (fp[hi].red() - fp[low].red()) / (xp[hi] - xp[low]) + fp[low].red(),
+      (xv - xp[low]) * (fp[hi].green() - fp[low].green()) / (xp[hi] - xp[low]) + fp[low].green(),
+      (xv - xp[low]) * (fp[hi].blue() - fp[low].blue()) / (xp[hi] - xp[low]) + fp[low].blue(),
+      (xv - xp[low]) * (fp[hi].alpha() - fp[low].alpha()) / (xp[hi] - xp[low]) + fp[low].alpha());
   }
 }
 
@@ -193,8 +246,8 @@ QPixmap bootstrapPixmap(const QString &id) {
 bool hasLongitudinalControl(const cereal::CarParams::Reader &car_params) {
   // Using the experimental longitudinal toggle, returns whether longitudinal control
   // will be active without needing a restart of openpilot
-  return car_params.getAlphaLongitudinalAvailable()
-             ? Params().getBool("AlphaLongitudinalEnabled")
+  return car_params.getExperimentalLongitudinalAvailable()
+             ? Params().getBool("ExperimentalLongitudinalEnabled")
              : car_params.getOpenpilotLongitudinalControl();
 }
 

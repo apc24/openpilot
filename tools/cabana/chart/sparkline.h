@@ -5,7 +5,6 @@
 #include <vector>
 
 #include "tools/cabana/dbc/dbc.h"
-#include "tools/cabana/streams/abstractstream.h"
 
 class Sparkline {
 public:

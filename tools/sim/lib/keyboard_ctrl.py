@@ -2,12 +2,9 @@ import sys
 import termios
 import time
 
-from multiprocessing import Queue
 from termios import (BRKINT, CS8, CSIZE, ECHO, ICANON, ICRNL, IEXTEN, INPCK,
                      ISTRIP, IXON, PARENB, VMIN, VTIME)
 from typing import NoReturn
-
-from openpilot.tools.sim.bridge.common import QueueMessage, control_cmd_gen
 
 # Indexes for termios list.
 IFLAG = 0
@@ -52,41 +49,34 @@ def getch() -> str:
     termios.tcsetattr(STDIN_FD, termios.TCSADRAIN, old_settings)
   return ch
 
-def print_keyboard_help():
-  print(f"Keyboard Commands:\n{KEYBOARD_HELP}")
-
-def keyboard_poll_thread(q: 'Queue[QueueMessage]'):
-  print_keyboard_help()
-
+def keyboard_poll_thread(q: 'Queue[str]'):
   while True:
     c = getch()
     if c == '1':
-      q.put(control_cmd_gen("cruise_up"))
+      q.put("cruise_up")
     elif c == '2':
-      q.put(control_cmd_gen("cruise_down"))
+      q.put("cruise_down")
     elif c == '3':
-      q.put(control_cmd_gen("cruise_cancel"))
+      q.put("cruise_cancel")
     elif c == 'w':
-      q.put(control_cmd_gen(f"throttle_{1.0}"))
+      q.put("throttle_%f" % 1.0)
     elif c == 'a':
-      q.put(control_cmd_gen(f"steer_{-0.15}"))
+      q.put("steer_%f" % -0.15)
     elif c == 's':
-      q.put(control_cmd_gen(f"brake_{1.0}"))
+      q.put("brake_%f" % 1.0)
     elif c == 'd':
-      q.put(control_cmd_gen(f"steer_{0.15}"))
+      q.put("steer_%f" % 0.15)
     elif c == 'z':
-      q.put(control_cmd_gen("blinker_left"))
+      q.put("blinker_left")
     elif c == 'x':
-      q.put(control_cmd_gen("blinker_right"))
+      q.put("blinker_right")
     elif c == 'i':
-      q.put(control_cmd_gen("ignition"))
+      q.put("ignition")
     elif c == 'r':
-      q.put(control_cmd_gen("reset"))
+      q.put("reset")
     elif c == 'q':
-      q.put(control_cmd_gen("quit"))
+      q.put("quit")
       break
-    else:
-      print_keyboard_help()
 
 def test(q: 'Queue[str]') -> NoReturn:
   while True:
@@ -95,7 +85,7 @@ def test(q: 'Queue[str]') -> NoReturn:
 
 if __name__ == '__main__':
   from multiprocessing import Process, Queue
-  q: 'Queue[QueueMessage]' = Queue()
+  q: Queue[str] = Queue()
   p = Process(target=test, args=(q,))
   p.daemon = True
   p.start()

@@ -16,10 +16,8 @@ import argparse
 from typing import NamedTuple
 from subprocess import check_output, CalledProcessError
 
-from opendbc.car.carlog import carlog
-from opendbc.car.uds import UdsClient, SESSION_TYPE, DATA_IDENTIFIER_TYPE
-from opendbc.car.structs import CarParams
 from panda.python import Panda
+from panda.python.uds import UdsClient, SESSION_TYPE, DATA_IDENTIFIER_TYPE
 
 class ConfigValues(NamedTuple):
   default_config: bytes
@@ -38,9 +36,6 @@ SUPPORTED_FW_VERSIONS = {
     default_config=b"\x00\x00\x00\x01\x00\x00",
     tracks_enabled=b"\x00\x00\x00\x01\x00\x01"),
   # 2021 SONATA HYBRID
-  b"DNhe SCC FHCUP      1.00 1.00 99110-L5000\x19\x04&\x13'    ": ConfigValues(
-    default_config=b"\x00\x00\x00\x01\x00\x00",
-    tracks_enabled=b"\x00\x00\x00\x01\x00\x01"),
   b"DNhe SCC FHCUP      1.00 1.02 99110-L5000 \x01#\x15#    ": ConfigValues(
     default_config=b"\x00\x00\x00\x01\x00\x00",
     tracks_enabled=b"\x00\x00\x00\x01\x00\x01"),
@@ -80,15 +75,12 @@ if __name__ == "__main__":
   parser.add_argument('--bus', type=int, default=0, help='can bus to use (default: 0)')
   args = parser.parse_args()
 
-  if args.debug:
-    carlog.setLevel('DEBUG')
-
   try:
-    check_output(["pidof", "pandad"])
-    print("pandad is running, please kill openpilot before running this script! (aborted)")
+    check_output(["pidof", "boardd"])
+    print("boardd is running, please kill openpilot before running this script! (aborted)")
     sys.exit(1)
   except CalledProcessError as e:
-    if e.returncode != 1: # 1 == no process found (pandad not running)
+    if e.returncode != 1: # 1 == no process found (boardd not running)
       raise e
 
   confirm = input("power on the vehicle keeping the engine off (press start button twice) then type OK to continue: ").upper().strip()
@@ -97,8 +89,8 @@ if __name__ == "__main__":
     sys.exit(0)
 
   panda = Panda()
-  panda.set_safety_mode(CarParams.SafetyModel.elm327)
-  uds_client = UdsClient(panda, 0x7D0, bus=args.bus)
+  panda.set_safety_mode(Panda.SAFETY_ELM327)
+  uds_client = UdsClient(panda, 0x7D0, bus=args.bus, debug=args.debug)
 
   print("\n[START DIAGNOSTIC SESSION]")
   session_type : SESSION_TYPE = 0x07 # type: ignore

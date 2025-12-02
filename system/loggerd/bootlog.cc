@@ -5,7 +5,6 @@
 #include "common/params.h"
 #include "common/swaglog.h"
 #include "system/loggerd/logger.h"
-#include "system/loggerd/zstd_writer.h"
 
 
 static kj::Array<capnp::word> build_boot_log() {
@@ -28,7 +27,7 @@ static kj::Array<capnp::word> build_boot_log() {
 
   // Gather output of commands
   std::vector<std::string> bootlog_commands = {
-    "[ -x \"$(command -v journalctl)\" ] && journalctl -o short-monotonic",
+    "[ -x \"$(command -v journalctl)\" ] && journalctl",
   };
 
   if (Hardware::TICI()) {
@@ -51,14 +50,14 @@ static kj::Array<capnp::word> build_boot_log() {
 
 int main(int argc, char** argv) {
   const std::string id = logger_get_identifier("BootCount");
-  const std::string path = Path::log_root() + "/boot/" + id + ".zst";
+  const std::string path = Path::log_root() + "/boot/" + id;
   LOGW("bootlog to %s", path.c_str());
 
   // Open bootlog
   bool r = util::create_directories(Path::log_root() + "/boot/", 0775);
   assert(r);
 
-  ZstdFileWriter file(path, LOG_COMPRESSION_LEVEL);
+  RawFile file(path.c_str());
   // Write initdata
   file.write(logger_build_init_data().asBytes());
   // Write bootlog

@@ -6,16 +6,14 @@ import os
 import struct
 import subprocess
 import time
-from collections.abc import Generator
+from typing import Dict, Generator, List, Tuple, Union
 
 import requests
 
-import openpilot.system.updated.casync.casync as casync
+import openpilot.system.hardware.tici.casync as casync
 
 SPARSE_CHUNK_FMT = struct.Struct('H2xI4x')
 CAIBX_URL = "https://commadist.azureedge.net/agnosupdate/"
-
-AGNOS_MANIFEST_FILE = "system/hardware/tici/agnos.json"
 
 
 class StreamingDecompressor:
@@ -29,23 +27,16 @@ class StreamingDecompressor:
     self.sha256 = hashlib.sha256()
 
   def read(self, length: int) -> bytes:
-    while len(self.buf) < length and not self.eof:
-      if self.decompressor.needs_input:
-        self.req.raise_for_status()
+    while len(self.buf) < length:
+      self.req.raise_for_status()
 
-        try:
-          compressed = next(self.it)
-        except StopIteration:
-          self.eof = True
-          break
-      else:
-        compressed = b''
-
-      self.buf += self.decompressor.decompress(compressed, max_length=length)
-
-      if self.decompressor.eof:
+      try:
+        compressed = next(self.it)
+      except StopIteration:
         self.eof = True
         break
+      out = self.decompressor.decompress(compressed)
+      self.buf += out
 
     result = self.buf[:length]
     self.buf = self.buf[length:]
@@ -90,8 +81,8 @@ def unsparsify(f: StreamingDecompressor) -> Generator[bytes, None, None]:
 
 # noop wrapper with same API as unsparsify() for non sparse images
 def noop(f: StreamingDecompressor) -> Generator[bytes, None, None]:
-  while len(chunk := f.read(1024 * 1024)) > 0:
-    yield chunk
+  while not f.eof:
+    yield f.read(1024 * 1024)
 
 
 def get_target_slot_number() -> int:
@@ -126,7 +117,7 @@ def get_raw_hash(path: str, partition_size: int) -> str:
   return raw_hash.hexdigest().lower()
 
 
-def verify_partition(target_slot_number: int, partition: dict[str, str | int], force_full_check: bool = False) -> bool:
+def verify_partition(target_slot_number: int, partition: Dict[str, Union[str, int]], force_full_check: bool = False) -> bool:
   full_check = partition['full_check'] or force_full_check
   path = get_partition_path(target_slot_number, partition)
 
@@ -193,7 +184,7 @@ def extract_casync_image(target_slot_number: int, partition: dict, cloudlog):
 
   target = casync.parse_caibx(partition['casync_caibx'])
 
-  sources: list[tuple[str, casync.ChunkReader, casync.ChunkDict]] = []
+  sources: List[Tuple[str, casync.ChunkReader, casync.ChunkDict]] = []
 
   # First source is the current partition.
   try:

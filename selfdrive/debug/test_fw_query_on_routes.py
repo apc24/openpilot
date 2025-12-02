@@ -6,17 +6,21 @@ import argparse
 import os
 import traceback
 from tqdm import tqdm
-from opendbc.car.car_helpers import interface_names
-from opendbc.car.fingerprints import MIGRATION
-from opendbc.car.fw_versions import VERSIONS, match_fw_to_car
 from openpilot.tools.lib.logreader import LogReader, ReadMode
 from openpilot.tools.lib.route import SegmentRange
+from openpilot.selfdrive.car.car_helpers import interface_names
+from openpilot.selfdrive.car.fw_versions import VERSIONS, match_fw_to_car
 
 
 NO_API = "NO_API" in os.environ
 SUPPORTED_BRANDS = VERSIONS.keys()
 SUPPORTED_CARS = [brand for brand in SUPPORTED_BRANDS for brand in interface_names[brand]]
 UNKNOWN_BRAND = "unknown"
+
+try:
+  from xx.pipeline.lib.fingerprint import MIGRATION
+except ImportError:
+  MIGRATION = {}
 
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description='Run FW fingerprint on Qlog of route or list of routes')
@@ -65,7 +69,8 @@ if __name__ == "__main__":
           CP = msg.carParams
           car_fw = [fw for fw in CP.carFw if not fw.logging]
           if len(car_fw) == 0:
-            print("WARNING: no fw")
+            print("no fw")
+            break
 
           live_fingerprint = CP.carFingerprint
           live_fingerprint = MIGRATION.get(live_fingerprint, live_fingerprint)
@@ -77,8 +82,8 @@ if __name__ == "__main__":
             print("not in supported cars")
             break
 
-          _, exact_matches = match_fw_to_car(car_fw, CP.carVin, allow_exact=True, allow_fuzzy=False)
-          _, fuzzy_matches = match_fw_to_car(car_fw, CP.carVin, allow_exact=False, allow_fuzzy=True)
+          _, exact_matches = match_fw_to_car(car_fw, allow_exact=True, allow_fuzzy=False)
+          _, fuzzy_matches = match_fw_to_car(car_fw, allow_exact=False, allow_fuzzy=True)
 
           if (len(exact_matches) == 1) and (list(exact_matches)[0] == live_fingerprint):
             good_exact += 1
@@ -97,7 +102,7 @@ if __name__ == "__main__":
           print("New style (exact):", exact_matches)
           print("New style (fuzzy):", fuzzy_matches)
 
-          padding = max([len(fw.brand or UNKNOWN_BRAND) for fw in car_fw] + [0])
+          padding = max([len(fw.brand or UNKNOWN_BRAND) for fw in car_fw])
           for version in sorted(car_fw, key=lambda fw: fw.brand):
             subaddr = None if version.subAddress == 0 else hex(version.subAddress)
             print(f"  Brand: {version.brand or UNKNOWN_BRAND:{padding}}, bus: {version.bus} - " +

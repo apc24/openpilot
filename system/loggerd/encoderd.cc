@@ -1,7 +1,6 @@
 #include <cassert>
 
 #include "system/loggerd/loggerd.h"
-#include "system/loggerd/encoder/jpeg_encoder.h"
 
 #ifdef QCOM2
 #include "system/loggerd/encoder/v4l_encoder.h"
@@ -19,12 +18,12 @@ struct EncoderdState {
   // Sync logic for startup
   std::atomic<int> encoders_ready = 0;
   std::atomic<uint32_t> start_frame_id = 0;
-  bool camera_ready[VISION_STREAM_WIDE_ROAD + 1] = {};
-  bool camera_synced[VISION_STREAM_WIDE_ROAD + 1] = {};
+  bool camera_ready[WideRoadCam + 1] = {};
+  bool camera_synced[WideRoadCam + 1] = {};
 };
 
 // Handle initial encoder syncing by waiting for all encoders to reach the same frame id
-bool sync_encoders(EncoderdState *s, VisionStreamType cam_type, uint32_t frame_id) {
+bool sync_encoders(EncoderdState *s, CameraType cam_type, uint32_t frame_id) {
   if (s->camera_synced[cam_type]) return true;
 
   if (s->max_waiting > 1 && s->encoders_ready != s->max_waiting) {
@@ -51,8 +50,6 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info) {
   std::vector<std::unique_ptr<Encoder>> encoders;
   VisionIpcClient vipc_client = VisionIpcClient("camerad", cam_info.stream_type, false);
 
-  std::unique_ptr<JpegEncoder> jpeg_encoder;
-
   int cur_seg = 0;
   while (!do_exit) {
     if (!vipc_client.connect(false)) {
@@ -62,18 +59,13 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info) {
 
     // init encoders
     if (encoders.empty()) {
-      const VisionBuf &buf_info = vipc_client.buffers[0];
+      VisionBuf buf_info = vipc_client.buffers[0];
       LOGW("encoder %s init %zux%zu", cam_info.thread_name, buf_info.width, buf_info.height);
       assert(buf_info.width > 0 && buf_info.height > 0);
 
       for (const auto &encoder_info : cam_info.encoder_infos) {
         auto &e = encoders.emplace_back(new Encoder(encoder_info, buf_info.width, buf_info.height));
-        e->encoder_open();
-      }
-
-      // Only one thumbnail can be generated per camera stream
-      if (auto thumbnail_name = cam_info.encoder_infos[0].thumbnail_name) {
-        jpeg_encoder = std::make_unique<JpegEncoder>(thumbnail_name, buf_info.width / 4, buf_info.height / 4);
+        e->encoder_open(nullptr);
       }
     }
 
@@ -93,7 +85,7 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info) {
       }
       lagging = false;
 
-      if (!sync_encoders(s, cam_info.stream_type, extra.frame_id)) {
+      if (!sync_encoders(s, cam_info.type, extra.frame_id)) {
         continue;
       }
       if (do_exit) break;
@@ -103,7 +95,7 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info) {
       if (cur_seg >= 0 && extra.frame_id >= ((cur_seg + 1) * frames_per_seg) + s->start_frame_id) {
         for (auto &e : encoders) {
           e->encoder_close();
-          e->encoder_open();
+          e->encoder_open(NULL);
         }
         ++cur_seg;
       }
@@ -115,10 +107,6 @@ void encoder_thread(EncoderdState *s, const LogCameraInfo &cam_info) {
         if (out_id == -1) {
           LOGE("Failed to encode frame. frame_id: %d", extra.frame_id);
         }
-      }
-
-      if (jpeg_encoder && (extra.frame_id % 1200 == 100)) {
-        jpeg_encoder->pushThumbnail(buf, extra);
       }
     }
   }

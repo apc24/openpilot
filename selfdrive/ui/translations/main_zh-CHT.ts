@@ -68,23 +68,46 @@
     </message>
     <message>
         <source>Hidden Network</source>
-        <translation>隱藏的網路</translation>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <source>CONNECT</source>
-        <translation>連線</translation>
+        <translation type="unfinished">雲端服務</translation>
     </message>
     <message>
         <source>Enter SSID</source>
-        <translation>輸入 SSID</translation>
+        <translation type="unfinished">輸入 SSID</translation>
     </message>
     <message>
         <source>Enter password</source>
-        <translation>輸入密碼</translation>
+        <translation type="unfinished">輸入密碼</translation>
     </message>
     <message>
         <source>for &quot;%1&quot;</source>
-        <translation>給 &quot;%1&quot;</translation>
+        <translation type="unfinished">給 &quot;%1&quot;</translation>
+    </message>
+</context>
+<context>
+    <name>AnnotatedCameraWidget</name>
+    <message>
+        <source>km/h</source>
+        <translation>km/h</translation>
+    </message>
+    <message>
+        <source>mph</source>
+        <translation>mph</translation>
+    </message>
+    <message>
+        <source>MAX</source>
+        <translation>最高</translation>
+    </message>
+    <message>
+        <source>SPEED</source>
+        <translation>速度</translation>
+    </message>
+    <message>
+        <source>LIMIT</source>
+        <translation>速限</translation>
     </message>
 </context>
 <context>
@@ -114,34 +137,30 @@
     </message>
 </context>
 <context>
-    <name>DeveloperPanel</name>
+    <name>DestinationWidget</name>
     <message>
-        <source>Joystick Debug Mode</source>
-        <translation>搖桿調試模式</translation>
+        <source>Home</source>
+        <translation>住家</translation>
     </message>
     <message>
-        <source>Longitudinal Maneuver Mode</source>
-        <translation>縱向操控測試模式</translation>
+        <source>Work</source>
+        <translation>工作</translation>
     </message>
     <message>
-        <source>openpilot Longitudinal Control (Alpha)</source>
-        <translation>openpilot 縱向控制 (Alpha 版)</translation>
+        <source>No destination set</source>
+        <translation>尚未設定目的地</translation>
     </message>
     <message>
-        <source>WARNING: openpilot longitudinal control is in alpha for this car and will disable Automatic Emergency Braking (AEB).</source>
-        <translation>警告：此車輛的 openpilot 縱向控制功能目前處於 Alpha 版本，使用此功能將會停用自動緊急煞車（AEB）功能。</translation>
+        <source>No %1 location set</source>
+        <translation>尚未設定 %1 的位置</translation>
     </message>
     <message>
-        <source>On this car, openpilot defaults to the car&apos;s built-in ACC instead of openpilot&apos;s longitudinal control. Enable this to switch to openpilot longitudinal control. Enabling Experimental mode is recommended when enabling openpilot longitudinal control alpha.</source>
-        <translation>在這輛車上，openpilot 預設使用車輛內建的主動巡航控制（ACC），而非 openpilot 的縱向控制。啟用此項功能可切換至 openpilot 的縱向控制。當啟用 openpilot 縱向控制 Alpha 版本時，建議同時啟用實驗性模式（Experimental mode）。</translation>
+        <source>home</source>
+        <translation>住家</translation>
     </message>
     <message>
-        <source>Enable ADB</source>
-        <translation>啟用 ADB</translation>
-    </message>
-    <message>
-        <source>ADB (Android Debug Bridge) allows connecting to your device over USB or over the network. See https://docs.comma.ai/how-to/connect-to-comma for more info.</source>
-        <translation>ADB（Android 調試橋接）允許通過 USB 或網絡連接到您的設備。更多信息請參見 [https://docs.comma.ai/how-to/connect-to-comma](https://docs.comma.ai/how-to/connect-to-comma)。</translation>
+        <source>work</source>
+        <translation>工作</translation>
     </message>
 </context>
 <context>
@@ -228,11 +247,11 @@
     </message>
     <message>
         <source>openpilot requires the device to be mounted within 4° left or right and within 5° up or 9° down. openpilot is continuously calibrating, resetting is rarely required.</source>
-        <translation>openpilot 需要將裝置固定在左右偏差 4° 以內，朝上偏差 5° 以內或朝下偏差 9° 以內。鏡頭在後台會持續自動校準，很少有需要重置的情況。</translation>
+        <translation>openpilot 需要將設備固定在左右偏差 4° 以內，朝上偏差 5° 以內或朝下偏差 9° 以內。鏡頭在後台會持續自動校準，很少有需要重設的情況。</translation>
     </message>
     <message>
         <source> Your device is pointed %1° %2 and %3° %4.</source>
-        <translation> 你的裝置目前朝%2 %1° 以及朝%4 %3° 。</translation>
+        <translation> 你的設備目前朝%2 %1° 以及朝%4 %3° 。</translation>
     </message>
     <message>
         <source>down</source>
@@ -274,18 +293,6 @@
         <source>Review</source>
         <translation>回顧</translation>
     </message>
-    <message>
-        <source>Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer.</source>
-        <translation>將您的裝置與 comma connect (connect.comma.ai) 配對並領取您的 comma 高級會員優惠。</translation>
-    </message>
-    <message>
-        <source>Pair Device</source>
-        <translation>配對裝置</translation>
-    </message>
-    <message>
-        <source>PAIR</source>
-        <translation>配對</translation>
-    </message>
 </context>
 <context>
     <name>DriverViewWindow</name>
@@ -306,58 +313,6 @@
     </message>
 </context>
 <context>
-    <name>FirehosePanel</name>
-    <message>
-        <source>🔥 Firehose Mode 🔥</source>
-        <translation>🔥 訓練資料上傳模式 🔥</translation>
-    </message>
-    <message>
-        <source>openpilot learns to drive by watching humans, like you, drive.
-
-Firehose Mode allows you to maximize your training data uploads to improve openpilot&apos;s driving models. More data means bigger models, which means better Experimental Mode.</source>
-        <translation>openpilot 透過觀察人類駕駛（包括您）來學習如何駕駛。
-
-「訓練資料上傳模式」可讓您最大化上傳訓練數據，以改進 openpilot 的駕駛模型。更多數據代表更強大的模型，也就意味著更優秀的「實驗模式」。</translation>
-    </message>
-    <message>
-        <source>Firehose Mode: ACTIVE</source>
-        <translation>訓練資料上傳模式：啟用中</translation>
-    </message>
-    <message>
-        <source>ACTIVE</source>
-        <translation>啟用中</translation>
-    </message>
-    <message>
-        <source>For maximum effectiveness, bring your device inside and connect to a good USB-C adapter and Wi-Fi weekly.&lt;br&gt;&lt;br&gt;Firehose Mode can also work while you&apos;re driving if connected to a hotspot or unlimited SIM card.&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;Frequently Asked Questions&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;Does it matter how or where I drive?&lt;/i&gt; Nope, just drive as you normally would.&lt;br&gt;&lt;br&gt;&lt;i&gt;Do all of my segments get pulled in Firehose Mode?&lt;/i&gt; No, we selectively pull a subset of your segments.&lt;br&gt;&lt;br&gt;&lt;i&gt;What&apos;s a good USB-C adapter?&lt;/i&gt; Any fast phone or laptop charger should be fine.&lt;br&gt;&lt;br&gt;&lt;i&gt;Does it matter which software I run?&lt;/i&gt; Yes, only upstream openpilot (and particular forks) are able to be used for training.</source>
-        <translation>為了達到最佳效果，請每週將您的裝置帶回室內，並連接至優質的 USB-C 充電器與 Wi-Fi。&lt;br&gt;&lt;br&gt;訓練資料上傳模式在行駛時也能運作，但需連接至行動熱點或使用不限流量的 SIM 卡。&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;b&gt;常見問題&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;i&gt;我開車的方式或地點有影響嗎？&lt;/i&gt; 不會，請像平常一樣駕駛即可。&lt;br&gt;&lt;br&gt;&lt;i&gt;訓練資料上傳模式會上傳所有的駕駛片段嗎？&lt;/i&gt;不會，我們會選擇性地上傳部分片段。&lt;br&gt;&lt;br&gt;&lt;i&gt;什麼是好的 USB-C 充電器？&lt;/i&gt;任何快速手機或筆電充電器都應該適用。&lt;br&gt;&lt;br&gt;&lt;i&gt;我使用的軟體版本有影響嗎？&lt;/i&gt;有的，只有官方 openpilot（以及特定的分支）可以用於訓練。</translation>
-    </message>
-    <message numerus="yes">
-        <source>&lt;b&gt;%n segment(s)&lt;/b&gt; of your driving is in the training dataset so far.</source>
-        <translation>
-            <numerusform>&lt;b&gt;目前已有 %n 段&lt;/b&gt; 您的駕駛數據被納入訓練資料集。</numerusform>
-        </translation>
-    </message>
-    <message>
-        <source>&lt;span stylesheet=&apos;font-size: 60px; font-weight: bold; color: #e74c3c;&apos;&gt;INACTIVE&lt;/span&gt;: connect to an unmetered network</source>
-        <translation type="unfinished">&lt;span stylesheet=&apos;font-size: 60px; font-weight: bold; color: #e74c3c;&apos;&gt;閒置中&lt;/span&gt;：請連接到不按流量計費的網絡</translation>
-    </message>
-</context>
-<context>
-    <name>HudRenderer</name>
-    <message>
-        <source>km/h</source>
-        <translation>km/h</translation>
-    </message>
-    <message>
-        <source>mph</source>
-        <translation>mph</translation>
-    </message>
-    <message>
-        <source>MAX</source>
-        <translation>最高</translation>
-    </message>
-</context>
-<context>
     <name>InputDialog</name>
     <message>
         <source>Cancel</source>
@@ -375,6 +330,47 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     <message>
         <source>Installing...</source>
         <translation>安裝中…</translation>
+    </message>
+</context>
+<context>
+    <name>MapETA</name>
+    <message>
+        <source>eta</source>
+        <translation>抵達</translation>
+    </message>
+    <message>
+        <source>min</source>
+        <translation>分鐘</translation>
+    </message>
+    <message>
+        <source>hr</source>
+        <translation>小時</translation>
+    </message>
+</context>
+<context>
+    <name>MapSettings</name>
+    <message>
+        <source>NAVIGATION</source>
+        <translation>導航</translation>
+    </message>
+    <message>
+        <source>Manage at connect.comma.ai</source>
+        <translation>請在 connect.comma.ai 上管理</translation>
+    </message>
+</context>
+<context>
+    <name>MapWindow</name>
+    <message>
+        <source>Map Loading</source>
+        <translation>地圖載入中</translation>
+    </message>
+    <message>
+        <source>Waiting for GPS</source>
+        <translation>等待 GPS</translation>
+    </message>
+    <message>
+        <source>Waiting for route</source>
+        <translation>等待路線</translation>
     </message>
 </context>
 <context>
@@ -424,16 +420,20 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
 %1</translation>
     </message>
     <message>
+        <source>Invalid date and time settings, system won&apos;t start. Connect to internet to set time.</source>
+        <translation>日期和時間設定無效，系統無法啟動。請連接至網際網路以設定時間。</translation>
+    </message>
+    <message>
         <source>Taking camera snapshots. System won&apos;t start until finished.</source>
         <translation>正在使用相機拍攝中。在完成之前，系統將無法啟動。</translation>
     </message>
     <message>
         <source>An update to your device&apos;s operating system is downloading in the background. You will be prompted to update when it&apos;s ready to install.</source>
-        <translation>一個有關操作系統的更新正在後台下載中。當更新準備好安裝時，您將收到提示進行更新。</translation>
+        <translation>一個給您設備的操作系統的更新正在後台下載中。當更新準備好安裝時，您將收到提示進行更新。</translation>
     </message>
     <message>
         <source>Device failed to register. It will not connect to or upload to comma.ai servers, and receives no support from comma.ai. If this is an official device, visit https://comma.ai/support.</source>
-        <translation>裝置註冊失敗。它將無法連接或上傳至 comma.ai 伺服器，並且無法獲得 comma.ai 的支援。如果這是一個官方裝置，請訪問 https://comma.ai/support 。</translation>
+        <translation>設備註冊失敗。它將無法連接或上傳至 comma.ai 伺服器，並且無法獲得 comma.ai 的支援。如果這是一個官方設備，請訪問 https://comma.ai/support 。</translation>
     </message>
     <message>
         <source>NVMe drive not mounted.</source>
@@ -441,19 +441,23 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>Unsupported NVMe drive detected. Device may draw significantly more power and overheat due to the unsupported NVMe.</source>
-        <translation>檢測到不支援的 NVMe 固態硬碟。您的裝置因為使用了不支援的 NVMe 固態硬碟可能會消耗更多電力並更易過熱。</translation>
+        <translation>檢測到不支援的 NVMe 固態硬碟。您的設備因為使用了不支援的 NVMe 固態硬碟可能會消耗更多電力並更易過熱。</translation>
     </message>
     <message>
         <source>openpilot was unable to identify your car. Your car is either unsupported or its ECUs are not recognized. Please submit a pull request to add the firmware versions to the proper vehicle. Need help? Join discord.comma.ai.</source>
         <translation>openpilot 無法識別您的車輛。您的車輛可能未被支援，或是其電控單元 (ECU) 未被識別。請提交一個 Pull Request 為您的車輛添加正確的韌體版本。需要幫助嗎？請加入 discord.comma.ai 。</translation>
     </message>
     <message>
+        <source>openpilot was unable to identify your car. Check integrity of cables and ensure all connections are secure, particularly that the comma power is fully inserted in the OBD-II port of the vehicle. Need help? Join discord.comma.ai.</source>
+        <translation>openpilot 無法識別您的車輛。請檢查線路是否正確的安裝並確保所有的連接都牢固，特別是確保 comma power 完全插入車輛的 OBD-II 介面。需要幫助嗎？請加入 discord.comma.ai 。</translation>
+    </message>
+    <message>
         <source>openpilot detected a change in the device&apos;s mounting position. Ensure the device is fully seated in the mount and the mount is firmly secured to the windshield.</source>
-        <translation>openpilot 偵測到裝置的安裝位置發生變化。請確保裝置完全安裝在支架上，並確保支架牢固地固定在擋風玻璃上。</translation>
+        <translation>openpilot 偵測到設備的安裝位置發生變化。請確保設備完全安裝在支架上，並確保支架牢固地固定在擋風玻璃上。</translation>
     </message>
     <message>
         <source>Device temperature too high. System cooling down before starting. Current internal component temperature: %1</source>
-        <translation>裝置溫度過高。系統正在冷卻中，等冷卻完畢後才會啟動。目前內部組件溫度：%1</translation>
+        <translation>設備溫度過高。系統正在冷卻中，等冷卻完畢後才會啟動。目前內部組件溫度：%1</translation>
     </message>
 </context>
 <context>
@@ -472,33 +476,10 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
 </context>
 <context>
-    <name>OnroadAlerts</name>
-    <message>
-        <source>openpilot Unavailable</source>
-        <translation>無法使用 openpilot</translation>
-    </message>
-    <message>
-        <source>TAKE CONTROL IMMEDIATELY</source>
-        <translation>立即接管</translation>
-    </message>
-    <message>
-        <source>Reboot Device</source>
-        <translation>請重新啟裝置</translation>
-    </message>
-    <message>
-        <source>Waiting to start</source>
-        <translation>等待開始</translation>
-    </message>
-    <message>
-        <source>System Unresponsive</source>
-        <translation>系統無回應</translation>
-    </message>
-</context>
-<context>
     <name>PairingPopup</name>
     <message>
         <source>Pair your device to your comma account</source>
-        <translation>將裝置與您的 comma 帳號配對</translation>
+        <translation>將設備與您的 comma 帳號配對</translation>
     </message>
     <message>
         <source>Go to https://connect.comma.ai on your phone</source>
@@ -511,10 +492,6 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     <message>
         <source>Bookmark connect.comma.ai to your home screen to use it like an app</source>
         <translation>將 connect.comma.ai 加入您的主螢幕，以便像手機 App 一樣使用它</translation>
-    </message>
-    <message>
-        <source>Please connect to Wi-Fi to complete initial pairing</source>
-        <translation>請連接 Wi-Fi 以完成初始配對</translation>
     </message>
 </context>
 <context>
@@ -551,12 +528,12 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         <translation>24/7 LTE 連線</translation>
     </message>
     <message>
-        <source>1 year of drive storage</source>
-        <translation>一年的行駛記錄儲存空間</translation>
+        <source>Turn-by-turn navigation</source>
+        <translation>導航功能</translation>
     </message>
     <message>
-        <source>Remote snapshots</source>
-        <translation>遠端快照</translation>
+        <source>1 year of drive storage</source>
+        <translation>一年的行駛記錄儲存空間</translation>
     </message>
 </context>
 <context>
@@ -603,8 +580,20 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
         </translation>
     </message>
     <message>
-        <source>now</source>
-        <translation>現在</translation>
+        <source>km</source>
+        <translation>km</translation>
+    </message>
+    <message>
+        <source>m</source>
+        <translation>m</translation>
+    </message>
+    <message>
+        <source>mi</source>
+        <translation>mi</translation>
+    </message>
+    <message>
+        <source>ft</source>
+        <translation>ft</translation>
     </message>
 </context>
 <context>
@@ -615,7 +604,7 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>Are you sure you want to reset your device?</source>
-        <translation>您確定要重設你的裝置嗎？</translation>
+        <translation>您確定要重設你的設備嗎？</translation>
     </message>
     <message>
         <source>System Reset</source>
@@ -635,17 +624,17 @@ Firehose Mode allows you to maximize your training data uploads to improve openp
     </message>
     <message>
         <source>Unable to mount data partition. Partition may be corrupted. Press confirm to erase and reset your device.</source>
-        <translation>無法掛載資料分割區。分割區可能已經毀損。請確認是否要刪除並重置。</translation>
+        <translation>無法掛載資料分割區。分割區可能已經毀損。請確認是否要刪除並重新設定。</translation>
     </message>
     <message>
         <source>Resetting device...
 This may take up to a minute.</source>
-        <translation>重置中…
+        <translation>設備重設中…
 這可能需要一分鐘的時間。</translation>
     </message>
     <message>
         <source>System reset triggered. Press confirm to erase all content and settings. Press cancel to resume boot.</source>
-        <translation>系統重設已啟動。按下「確認」以清除所有內容和設定，或按下「取消」以繼續開機。</translation>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -656,7 +645,7 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>Device</source>
-        <translation>裝置</translation>
+        <translation>設備</translation>
     </message>
     <message>
         <source>Network</source>
@@ -669,14 +658,6 @@ This may take up to a minute.</source>
     <message>
         <source>Software</source>
         <translation>軟體</translation>
-    </message>
-    <message>
-        <source>Developer</source>
-        <translation>開發人員</translation>
-    </message>
-    <message>
-        <source>Firehose</source>
-        <translation>訓練上傳</translation>
     </message>
 </context>
 <context>
@@ -739,7 +720,7 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>Ensure the entered URL is valid, and the device’s internet connection is good.</source>
-        <translation>請確定您輸入的是有效的安裝網址，並且確定裝置的網路連線狀態良好。</translation>
+        <translation>請確定您輸入的是有效的安裝網址，並且確定設備的網路連線狀態良好。</translation>
     </message>
     <message>
         <source>Reboot device</source>
@@ -755,23 +736,11 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>Something went wrong. Reboot the device.</source>
-        <translation>發生了一些錯誤。請重新啟動您的裝置。</translation>
+        <translation>發生了一些錯誤。請重新啟動您的設備。</translation>
     </message>
     <message>
         <source>Select a language</source>
         <translation>選擇語言</translation>
-    </message>
-    <message>
-        <source>Choose Software to Install</source>
-        <translation>選擇要安裝的軟體</translation>
-    </message>
-    <message>
-        <source>openpilot</source>
-        <translation>openpilot</translation>
-    </message>
-    <message>
-        <source>Custom Software</source>
-        <translation>自訂軟體</translation>
     </message>
 </context>
 <context>
@@ -782,11 +751,11 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>Pair your device with comma connect (connect.comma.ai) and claim your comma prime offer.</source>
-        <translation>將您的裝置與 comma connect (connect.comma.ai) 配對並領取您的 comma 高級會員優惠。</translation>
+        <translation>將您的設備與 comma connect (connect.comma.ai) 配對並領取您的 comma 高級會員優惠。</translation>
     </message>
     <message>
         <source>Pair device</source>
-        <translation>配對裝置</translation>
+        <translation>配對設備</translation>
     </message>
 </context>
 <context>
@@ -833,6 +802,14 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>PANDA</source>
+        <translation>車輛通訊</translation>
+    </message>
+    <message>
+        <source>GPS</source>
+        <translation>GPS</translation>
+    </message>
+    <message>
+        <source>SEARCH</source>
         <translation>車輛通訊</translation>
     </message>
     <message>
@@ -988,20 +965,20 @@ This may take up to a minute.</source>
 <context>
     <name>TermsPage</name>
     <message>
+        <source>Terms &amp; Conditions</source>
+        <translation>條款和條件</translation>
+    </message>
+    <message>
         <source>Decline</source>
         <translation>拒絕</translation>
     </message>
     <message>
+        <source>Scroll to accept</source>
+        <translation>滑動至頁尾接受條款</translation>
+    </message>
+    <message>
         <source>Agree</source>
         <translation>接受</translation>
-    </message>
-    <message>
-        <source>Welcome to openpilot</source>
-        <translation>歡迎使用 openpilot</translation>
-    </message>
-    <message>
-        <source>You must accept the Terms and Conditions to use openpilot. Read the latest terms at &lt;span style=&apos;color: #465BEA;&apos;&gt;https://comma.ai/terms&lt;/span&gt; before continuing.</source>
-        <translation>您必須接受《條款與條件》才能使用 openpilot。在繼續之前，請先閱讀最新條款：&lt;span style=&apos;color: #465BEA;&apos;&gt;https://comma.ai/terms&lt;/span&gt;。</translation>
     </message>
 </context>
 <context>
@@ -1047,6 +1024,22 @@ This may take up to a minute.</source>
         <translation>啟用後，踩踏油門將會取消 openpilot 控制。</translation>
     </message>
     <message>
+        <source>Show ETA in 24h Format</source>
+        <translation>預計到達時間單位改用 24 小時制</translation>
+    </message>
+    <message>
+        <source>Use 24h format instead of am/pm</source>
+        <translation>使用 24 小時制。(預設值為 12 小時制)</translation>
+    </message>
+    <message>
+        <source>Show Map on Left Side of UI</source>
+        <translation>將地圖顯示在畫面的左側</translation>
+    </message>
+    <message>
+        <source>Show map on left side when in split screen view.</source>
+        <translation>進入分割畫面後，地圖將會顯示在畫面的左側。</translation>
+    </message>
+    <message>
         <source>Experimental Mode</source>
         <translation>實驗模式</translation>
     </message>
@@ -1071,6 +1064,18 @@ This may take up to a minute.</source>
         <translation>openpilot 縱向控制可能會在未來的更新中提供。</translation>
     </message>
     <message>
+        <source>openpilot Longitudinal Control (Alpha)</source>
+        <translation>openpilot 縱向控制 (Alpha 版)</translation>
+    </message>
+    <message>
+        <source>WARNING: openpilot longitudinal control is in alpha for this car and will disable Automatic Emergency Braking (AEB).</source>
+        <translation>警告：此車輛的 openpilot 縱向控制功能目前處於 Alpha 版本，使用此功能將會停用自動緊急煞車（AEB）功能。</translation>
+    </message>
+    <message>
+        <source>On this car, openpilot defaults to the car&apos;s built-in ACC instead of openpilot&apos;s longitudinal control. Enable this to switch to openpilot longitudinal control. Enabling Experimental mode is recommended when enabling openpilot longitudinal control alpha.</source>
+        <translation>在這輛車上，openpilot 預設使用車輛內建的主動巡航控制（ACC），而非 openpilot 的縱向控制。啟用此項功能可切換至 openpilot 的縱向控制。當啟用 openpilot 縱向控制 Alpha 版本時，建議同時啟用實驗性模式（Experimental mode）。</translation>
+    </message>
+    <message>
         <source>Aggressive</source>
         <translation>積極</translation>
     </message>
@@ -1087,8 +1092,16 @@ This may take up to a minute.</source>
         <translation>駕駛風格</translation>
     </message>
     <message>
+        <source>Standard is recommended. In aggressive mode, openpilot will follow lead cars closer and be more aggressive with the gas and brake. In relaxed mode openpilot will stay further away from lead cars.</source>
+        <translation>推薦使用標準模式。在積極模式中，openpilot 會更靠近前車並在加速和剎車方面更積極。在舒適模式中，openpilot 會與前車保持較遠的距離。</translation>
+    </message>
+    <message>
         <source>An alpha version of openpilot longitudinal control can be tested, along with Experimental mode, on non-release branches.</source>
         <translation>在正式 (release) 版以外的分支上可以測試 openpilot 縱向控制的 Alpha 版本以及實驗模式。</translation>
+    </message>
+    <message>
+        <source>Navigate on openpilot</source>
+        <translation>Navigate on openpilot</translation>
     </message>
     <message>
         <source>Enable the openpilot longitudinal control (alpha) toggle to allow Experimental mode.</source>
@@ -1099,20 +1112,12 @@ This may take up to a minute.</source>
         <translation>端到端縱向控制</translation>
     </message>
     <message>
-        <source>Standard is recommended. In aggressive mode, openpilot will follow lead cars closer and be more aggressive with the gas and brake. In relaxed mode openpilot will stay further away from lead cars. On supported cars, you can cycle through these personalities with your steering wheel distance button.</source>
-        <translation>建議使用標準模式。在積極模式下，openpilot 會更接近前車並更積極地使用油門和剎車。在輕鬆模式下，openpilot 會與前車保持較遠距離。對於支援的汽車，您可以使用方向盤上的距離按鈕來切換這些駕駛風格。</translation>
+        <source>When navigation has a destination, openpilot will input the map information into the model. This provides useful context for the model and allows openpilot to keep left or right appropriately at forks/exits. Lane change behavior is unchanged and still activated by the driver. This is an alpha quality feature; mistakes should be expected, particularly around exits and forks. These mistakes can include unintended laneline crossings, late exit taking, driving towards dividing barriers in the gore areas, etc.</source>
+        <translation>當導航有目的地時，openpilot 將把地圖資訊輸入模型中。這為模型提供了有用的背景資訊，使 openpilot 能夠在叉路/出口時適當地保持左側或右側行駛。車道變換行為保持不變，仍由駕駛員啟用。這是一個 Alpha 版的功能；可能會出現錯誤，特別是在出口和分叉處。這些錯誤可能包括意外的車道越界、晚出口、朝著分隔欄駛向分隔帶區域等。</translation>
     </message>
     <message>
-        <source>The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns. The Experimental mode logo will also be shown in the top right corner.</source>
-        <translation>在低速時，駕駛可視化將切換至道路朝向的廣角攝影機，以更好地顯示某些彎道。在右上角還會顯示「實驗模式」的標誌。</translation>
-    </message>
-    <message>
-        <source>Always-On Driver Monitoring</source>
-        <translation>駕駛監控常開</translation>
-    </message>
-    <message>
-        <source>Enable driver monitoring even when openpilot is not engaged.</source>
-        <translation>即使在openpilot未激活時也啟用駕駛監控。</translation>
+        <source>The driving visualization will transition to the road-facing wide-angle camera at low speeds to better show some turns. The Experimental mode logo will also be shown in the top right corner. When a navigation destination is set and the driving model is using it as input, the driving path on the map will turn green.</source>
+        <translation>行駛畫面將在低速時切換至道路朝向的廣角鏡頭，以更好地顯示一些轉彎。實驗模式圖示也將顯示在右上角。當設定了導航目的地並且行駛模型正在將其作為輸入時，地圖上的行駛路徑將變為綠色。</translation>
     </message>
 </context>
 <context>
@@ -1123,7 +1128,7 @@ This may take up to a minute.</source>
     </message>
     <message>
         <source>An operating system update is required. Connect your device to Wi-Fi for the fastest update experience. The download size is approximately 1GB.</source>
-        <translation>需要進行作業系統更新。建議將您的裝置連接上 Wi-Fi 獲得更快的更新下載。下載大小約為 1GB。</translation>
+        <translation>設備的操作系統需要更新。請將您的設備連接到 Wi-Fi 以獲得最快的更新體驗。下載大小約為 1GB。</translation>
     </message>
     <message>
         <source>Connect to Wi-Fi</source>
@@ -1153,16 +1158,24 @@ This may take up to a minute.</source>
 <context>
     <name>WiFiPromptWidget</name>
     <message>
-        <source>Open</source>
-        <translation>開啟</translation>
+        <source>Setup Wi-Fi</source>
+        <translation>設置 Wi-Fi 連接</translation>
     </message>
     <message>
-        <source>Maximize your training data uploads to improve openpilot&apos;s driving models.</source>
-        <translation>最大化您的訓練數據上傳，以改善 openpilot 的駕駛模型。</translation>
+        <source>Connect to Wi-Fi to upload driving data and help improve openpilot</source>
+        <translation>請連接至 Wi-Fi 傳駕駛數據以協助改進 openpilot</translation>
     </message>
     <message>
-        <source>&lt;span style=&apos;font-family: &quot;Noto Color Emoji&quot;;&apos;&gt;🔥&lt;/span&gt; Firehose Mode &lt;span style=&apos;font-family: Noto Color Emoji;&apos;&gt;🔥&lt;/span&gt;</source>
-        <translation>&lt;span style=&apos;font-family: &quot;Noto Color Emoji&quot;;&apos;&gt;🔥&lt;/span&gt; 訓練資料上傳模式 &lt;span style=&apos;font-family: Noto Color Emoji;&apos;&gt;🔥&lt;/span&gt;</translation>
+        <source>Open Settings</source>
+        <translation>開啟設置</translation>
+    </message>
+    <message>
+        <source>Ready to upload</source>
+        <translation>準備好上傳</translation>
+    </message>
+    <message>
+        <source>Training data will be pulled periodically while your device is on Wi-Fi</source>
+        <translation>訓練數據將定期經過 Wi-Fi 上傳</translation>
     </message>
 </context>
 <context>

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 set -e
 
 RUBYOPT="-W0" irqtop -d1 -R

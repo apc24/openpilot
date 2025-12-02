@@ -1,17 +1,17 @@
+#!/usr/bin/env python3
 import time
+import unittest
 import numpy as np
-import pytest
 
-from openpilot.selfdrive.test.helpers import with_processes
+from openpilot.selfdrive.test.helpers import with_processes, phone_only
 from openpilot.system.camerad.snapshot.snapshot import get_snapshots
 
 TEST_TIME = 45
 REPEAT = 5
 
-@pytest.mark.tici
-class TestCamerad:
+class TestCamerad(unittest.TestCase):
   @classmethod
-  def setup_class(cls):
+  def setUpClass(cls):
     pass
 
   def _numpy_rgb2gray(self, im):
@@ -30,6 +30,7 @@ class TestCamerad:
     print([i_median, i_mean])
     return med_ex[0] < i_median < med_ex[1] and mean_ex[0] < i_mean < mean_ex[1]
 
+  @phone_only
   @with_processes(['camerad'])
   def test_camera_operation(self):
     passed = 0
@@ -48,4 +49,7 @@ class TestCamerad:
 
       passed += int(res)
       time.sleep(2)
-    assert passed >= REPEAT
+    self.assertGreaterEqual(passed, REPEAT)
+
+if __name__ == "__main__":
+  unittest.main()

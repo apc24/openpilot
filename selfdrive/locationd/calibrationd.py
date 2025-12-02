@@ -6,16 +6,17 @@ While the roll calibration is a real value that can be estimated, here we assume
 and the image input into the neural network is not corrected for roll.
 '''
 
+import gc
 import os
 import capnp
 import numpy as np
-from typing import NoReturn
+from typing import List, NoReturn, Optional
 
-from cereal import log, car
+from cereal import log
 import cereal.messaging as messaging
 from openpilot.common.conversions import Conversions as CV
 from openpilot.common.params import Params
-from openpilot.common.realtime import config_realtime_process
+from openpilot.common.realtime import set_realtime_priority
 from openpilot.common.transformations.orientation import rot_from_euler, euler_from_rot
 from openpilot.common.swaglog import cloudlog
 
@@ -88,7 +89,7 @@ class Calibrator:
                   valid_blocks: int = 0,
                   wide_from_device_euler_init: np.ndarray = WIDE_FROM_DEVICE_EULER_INIT,
                   height_init: np.ndarray = HEIGHT_INIT,
-                  smooth_from: np.ndarray = None) -> None:
+                  smooth_from: Optional[np.ndarray] = None) -> None:
     if not np.isfinite(rpy_init).all():
       self.rpy = RPY_INIT.copy()
     else:
@@ -124,7 +125,7 @@ class Calibrator:
       self.old_rpy = smooth_from
       self.old_rpy_weight = 1.0
 
-  def get_valid_idxs(self) -> list[int]:
+  def get_valid_idxs(self) -> List[int]:
     # exclude current block_idx from validity window
     before_current = list(range(self.block_idx))
     after_current = list(range(min(self.valid_blocks, self.block_idx + 1), self.valid_blocks))
@@ -174,12 +175,12 @@ class Calibrator:
     else:
       return self.rpy
 
-  def handle_cam_odom(self, trans: list[float],
-                            rot: list[float],
-                            wide_from_device_euler: list[float],
-                            trans_std: list[float],
-                            road_transform_trans: list[float],
-                            road_transform_trans_std: list[float]) -> np.ndarray | None:
+  def handle_cam_odom(self, trans: List[float],
+                            rot: List[float],
+                            wide_from_device_euler: List[float],
+                            trans_std: List[float],
+                            road_transform_trans: List[float],
+                            road_transform_trans_std: List[float]) -> Optional[np.ndarray]:
     self.old_rpy_weight = max(0.0, self.old_rpy_weight - 1/SMOOTH_CYCLES)
 
     straight_and_fast = ((self.v_ego > MIN_SPEED_FILTER) and (trans[0] > MIN_SPEED_FILTER) and (abs(rot[2]) < MAX_YAW_RATE_FILTER))
@@ -255,20 +256,19 @@ class Calibrator:
 
 
 def main() -> NoReturn:
-  config_realtime_process([0, 1, 2, 3], 5)
+  gc.disable()
+  set_realtime_priority(1)
 
   pm = messaging.PubMaster(['liveCalibration'])
-  sm = messaging.SubMaster(['cameraOdometry', 'carState'], poll='cameraOdometry')
-
-  params_reader = Params()
-  CP = messaging.log_from_bytes(params_reader.get("CarParams", block=True), car.CarParams)
+  sm = messaging.SubMaster(['cameraOdometry', 'carState', 'carParams'], poll='cameraOdometry')
 
   calibrator = Calibrator(param_put=True)
-  calibrator.not_car = CP.notCar
 
   while 1:
     timeout = 0 if sm.frame == -1 else 100
     sm.update(timeout)
+
+    calibrator.not_car = sm['carParams'].notCar
 
     if sm.updated['cameraOdometry']:
       calibrator.handle_v_ego(sm['carState'].vEgo)

@@ -5,7 +5,7 @@
 #include <map>
 #include <string>
 
-#include "cereal/gen/cpp/log.capnp.h"
+#include "cereal/messaging/messaging.h"
 
 // no-op base hw class
 class HardwareNone {
@@ -28,11 +28,12 @@ public:
   static void reboot() {}
   static void poweroff() {}
   static void set_brightness(int percent) {}
-  static void set_ir_power(int percentage) {}
   static void set_display_power(bool on) {}
 
   static bool get_ssh_enabled() { return false; }
   static void set_ssh_enabled(bool enabled) {}
+
+  static void config_cpu_rendering(bool offscreen);
 
   static bool PC() { return false; }
   static bool TICI() { return false; }

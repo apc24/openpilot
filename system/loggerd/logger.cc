@@ -40,7 +40,7 @@ kj::Array<capnp::word> logger_build_init_data() {
   init.setOsVersion(util::read_file("/VERSION"));
 
   // log params
-  Params params(util::getenv("PARAMS_COPY_PATH", ""));
+  auto params = Params(util::getenv("PARAMS_COPY_PATH", ""));
   std::map<std::string, std::string> params_map = params.readAll();
 
   init.setGitCommit(params_map["GitCommit"]);
@@ -49,10 +49,6 @@ kj::Array<capnp::word> logger_build_init_data() {
   init.setGitRemote(params_map["GitRemote"]);
   init.setPassive(false);
   init.setDongleId(params_map["DongleId"]);
-
-  // for prebuilt branches
-  init.setGitSrcCommit(util::read_file("../../git_src_commit"));
-  init.setGitSrcCommitDate(util::read_file("../../git_src_commit_date"));
 
   auto lparams = init.initParams().initEntries(params_map.size());
   int j = 0;
@@ -93,6 +89,15 @@ kj::Array<capnp::word> logger_build_init_data() {
   return capnp::messageToFlatArray(msg);
 }
 
+std::string logger_get_route_name() {
+  char route_name[64] = {'\0'};
+  time_t rawtime = time(NULL);
+  struct tm timeinfo;
+  localtime_r(&rawtime, &timeinfo);
+  strftime(route_name, sizeof(route_name), "%Y-%m-%d--%H-%M-%S", &timeinfo);
+  return route_name;
+}
+
 std::string logger_get_identifier(std::string key) {
   // a log identifier is a 32 bit counter, plus a 10 character unique ID.
   // e.g. 000001a3--c20ba54385
@@ -100,7 +105,7 @@ std::string logger_get_identifier(std::string key) {
   Params params;
   uint32_t cnt;
   try {
-    cnt = std::stoul(params.get(key));
+    cnt = std::stol(params.get(key));
   } catch (std::exception &e) {
     cnt = 0;
   }
@@ -117,52 +122,16 @@ std::string logger_get_identifier(std::string key) {
   return util::string_format("%08x--%s", cnt, ss.str().c_str());
 }
 
-std::string zstd_decompress(const std::string &in) {
-  ZSTD_DCtx *dctx = ZSTD_createDCtx();
-  assert(dctx != nullptr);
-
-  // Initialize input and output buffers
-  ZSTD_inBuffer input = {in.data(), in.size(), 0};
-
-  // Estimate and reserve memory for decompressed data
-  size_t estimatedDecompressedSize = ZSTD_getFrameContentSize(in.data(), in.size());
-  if (estimatedDecompressedSize == ZSTD_CONTENTSIZE_ERROR || estimatedDecompressedSize == ZSTD_CONTENTSIZE_UNKNOWN) {
-    estimatedDecompressedSize = in.size() * 2;  // Use a fallback size
-  }
-
-  std::string decompressedData;
-  decompressedData.reserve(estimatedDecompressedSize);
-
-  const size_t bufferSize = ZSTD_DStreamOutSize();  // Recommended output buffer size
-  std::string outputBuffer(bufferSize, '\0');
-
-  while (input.pos < input.size) {
-    ZSTD_outBuffer output = {outputBuffer.data(), bufferSize, 0};
-
-    size_t result = ZSTD_decompressStream(dctx, &output, &input);
-    if (ZSTD_isError(result)) {
-      break;
-    }
-
-    decompressedData.append(outputBuffer.data(), output.pos);
-  }
-
-  ZSTD_freeDCtx(dctx);
-  decompressedData.shrink_to_fit();
-  return decompressedData;
-}
-
-
-static void log_sentinel(LoggerState *log, SentinelType type, int exit_signal = 0) {
+static void log_sentinel(LoggerState *log, SentinelType type, int eixt_signal = 0) {
   MessageBuilder msg;
   auto sen = msg.initEvent().initSentinel();
   sen.setType(type);
-  sen.setSignal(exit_signal);
+  sen.setSignal(eixt_signal);
   log->write(msg.toBytes(), true);
 }
 
 LoggerState::LoggerState(const std::string &log_root) {
-  route_name = logger_get_identifier("RouteCount");
+  route_name = logger_get_route_name();
   route_path = log_root + "/" + route_name;
   init_data = logger_build_init_data();
 }
@@ -184,11 +153,12 @@ bool LoggerState::next() {
   bool ret = util::create_directories(segment_path, 0775);
   assert(ret == true);
 
-  lock_file = segment_path + "/rlog.lock";
+  const std::string rlog_path = segment_path + "/rlog";
+  lock_file = rlog_path + ".lock";
   std::ofstream{lock_file};
 
-  rlog.reset(new ZstdFileWriter(segment_path + "/rlog.zst", LOG_COMPRESSION_LEVEL));
-  qlog.reset(new ZstdFileWriter(segment_path + "/qlog.zst", LOG_COMPRESSION_LEVEL));
+  rlog.reset(new RawFile(rlog_path));
+  qlog.reset(new RawFile(segment_path + "/qlog"));
 
   // log init data & sentinel type.
   write(init_data.asBytes(), true);

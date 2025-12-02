@@ -6,12 +6,11 @@ import json
 import uuid
 import logging
 from dataclasses import dataclass, field
-from typing import Any, TYPE_CHECKING
+from typing import Any, List, Optional, Union, TYPE_CHECKING
 
 # aiortc and its dependencies have lots of internal warnings :(
 import warnings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-warnings.filterwarnings("ignore", category=RuntimeWarning) # TODO: remove this when google-crc32c publish a python3.12 wheel
 
 import capnp
 from aiohttp import web
@@ -25,7 +24,7 @@ from cereal import messaging, log
 class CerealOutgoingMessageProxy:
   def __init__(self, sm: messaging.SubMaster):
     self.sm = sm
-    self.channels: list[RTCDataChannel] = []
+    self.channels: List['RTCDataChannel'] = []
 
   def add_channel(self, channel: 'RTCDataChannel'):
     self.channels.append(channel)
@@ -98,27 +97,13 @@ class CerealProxyRunner:
       except InvalidStateError:
         self.logger.warning("Cereal outgoing proxy invalid state (connection closed)")
         break
-      except Exception:
-        self.logger.exception("Cereal outgoing proxy failure")
+      except Exception as ex:
+        self.logger.error("Cereal outgoing proxy failure: %s", ex)
       await asyncio.sleep(0.01)
 
 
-class DynamicPubMaster(messaging.PubMaster):
-  def __init__(self, *args, **kwargs):
-    super().__init__(*args, **kwargs)
-    self.lock = asyncio.Lock()
-
-  async def add_services_if_needed(self, services):
-    async with self.lock:
-      for service in services:
-        if service not in self.sock:
-          self.sock[service] = messaging.pub_sock(service)
-
-
 class StreamSession:
-  shared_pub_master = DynamicPubMaster([])
-
-  def __init__(self, sdp: str, cameras: list[str], incoming_services: list[str], outgoing_services: list[str], debug_mode: bool = False):
+  def __init__(self, sdp: str, cameras: List[str], incoming_services: List[str], outgoing_services: List[str], debug_mode: bool = False):
     from aiortc.mediastreams import VideoStreamTrack, AudioStreamTrack
     from aiortc.contrib.media import MediaBlackhole
     from openpilot.system.webrtc.device.video import LiveStreamVideoStreamTrack
@@ -131,9 +116,11 @@ class StreamSession:
 
     assert len(cameras) == config.n_expected_camera_tracks, "Incoming stream has misconfigured number of video tracks"
     for cam in cameras:
-      builder.add_video_stream(cam, LiveStreamVideoStreamTrack(cam) if not debug_mode else VideoStreamTrack())
+      track = LiveStreamVideoStreamTrack(cam) if not debug_mode else VideoStreamTrack()
+      builder.add_video_stream(cam, track)
     if config.expected_audio_track:
-      builder.add_audio_stream(AudioInputStreamTrack() if not debug_mode else AudioStreamTrack())
+      track = AudioInputStreamTrack() if not debug_mode else AudioStreamTrack()
+      builder.add_audio_stream(track)
     if config.incoming_audio_track:
       self.audio_output_cls = AudioOutputSpeaker if not debug_mode else MediaBlackhole
       builder.offer_to_receive_audio_stream()
@@ -141,18 +128,12 @@ class StreamSession:
     self.stream = builder.stream()
     self.identifier = str(uuid.uuid4())
 
-    self.incoming_bridge: CerealIncomingMessageProxy | None = None
-    self.incoming_bridge_services = incoming_services
-    self.outgoing_bridge: CerealOutgoingMessageProxy | None = None
-    self.outgoing_bridge_runner: CerealProxyRunner | None = None
-    if len(incoming_services) > 0:
-      self.incoming_bridge = CerealIncomingMessageProxy(self.shared_pub_master)
-    if len(outgoing_services) > 0:
-      self.outgoing_bridge = CerealOutgoingMessageProxy(messaging.SubMaster(outgoing_services))
-      self.outgoing_bridge_runner = CerealProxyRunner(self.outgoing_bridge)
+    self.outgoing_bridge = CerealOutgoingMessageProxy(messaging.SubMaster(outgoing_services))
+    self.incoming_bridge = CerealIncomingMessageProxy(messaging.PubMaster(incoming_services))
+    self.outgoing_bridge_runner = CerealProxyRunner(self.outgoing_bridge)
 
-    self.audio_output: AudioOutputSpeaker | MediaBlackhole | None = None
-    self.run_task: asyncio.Task | None = None
+    self.audio_output: Optional[Union[AudioOutputSpeaker, MediaBlackhole]] = None
+    self.run_task: Optional[asyncio.Task] = None
     self.logger = logging.getLogger("webrtcd")
     self.logger.info("New stream session (%s), cameras %s, audio in %s out %s, incoming services %s, outgoing services %s",
                       self.identifier, cameras, config.incoming_audio_track, config.expected_audio_track, incoming_services, outgoing_services)
@@ -171,23 +152,19 @@ class StreamSession:
     return await self.stream.start()
 
   async def message_handler(self, message: bytes):
-    assert self.incoming_bridge is not None
     try:
       self.incoming_bridge.send(message)
-    except Exception:
-      self.logger.exception("Cereal incoming proxy failure")
+    except Exception as ex:
+      self.logger.error("Cereal incoming proxy failure: %s", ex)
 
   async def run(self):
     try:
       await self.stream.wait_for_connection()
       if self.stream.has_messaging_channel():
-        if self.incoming_bridge is not None:
-          await self.shared_pub_master.add_services_if_needed(self.incoming_bridge_services)
-          self.stream.set_message_handler(self.message_handler)
-        if self.outgoing_bridge_runner is not None:
-          channel = self.stream.get_messaging_channel()
-          self.outgoing_bridge_runner.proxy.add_channel(channel)
-          self.outgoing_bridge_runner.start()
+        self.stream.set_message_handler(self.message_handler)
+        channel = self.stream.get_messaging_channel()
+        self.outgoing_bridge_runner.proxy.add_channel(channel)
+        self.outgoing_bridge_runner.start()
       if self.stream.has_incoming_audio_track():
         track = self.stream.get_incoming_audio_track(buffered=False)
         self.audio_output = self.audio_output_cls()
@@ -199,13 +176,12 @@ class StreamSession:
       await self.post_run_cleanup()
 
       self.logger.info("Stream session (%s) ended", self.identifier)
-    except Exception:
-      self.logger.exception("Stream session failure")
+    except Exception as ex:
+      self.logger.error("Stream session failure: %s", ex)
 
   async def post_run_cleanup(self):
     await self.stream.stop()
-    if self.outgoing_bridge is not None:
-      self.outgoing_bridge_runner.stop()
+    self.outgoing_bridge_runner.stop()
     if self.audio_output:
       self.audio_output.stop()
 
@@ -213,9 +189,9 @@ class StreamSession:
 @dataclass
 class StreamRequestBody:
   sdp: str
-  cameras: list[str]
-  bridge_services_in: list[str] = field(default_factory=list)
-  bridge_services_out: list[str] = field(default_factory=list)
+  cameras: List[str]
+  bridge_services_in: List[str] = field(default_factory=list)
+  bridge_services_out: List[str] = field(default_factory=list)
 
 
 async def get_stream(request: 'web.Request'):

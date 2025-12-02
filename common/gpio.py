@@ -1,5 +1,6 @@
 import os
-from functools import cache
+from functools import lru_cache
+from typing import Optional, List
 
 def gpio_init(pin: int, output: bool) -> None:
   try:
@@ -15,7 +16,7 @@ def gpio_set(pin: int, high: bool) -> None:
   except Exception as e:
     print(f"Failed to set gpio {pin} value: {e}")
 
-def gpio_read(pin: int) -> bool | None:
+def gpio_read(pin: int) -> Optional[bool]:
   val = None
   try:
     with open(f"/sys/class/gpio/gpio{pin}/value", 'rb') as f:
@@ -35,8 +36,8 @@ def gpio_export(pin: int) -> None:
   except Exception:
     print(f"Failed to export gpio {pin}")
 
-@cache
-def get_irq_action(irq: int) -> list[str]:
+@lru_cache(maxsize=None)
+def get_irq_action(irq: int) -> List[str]:
   try:
     with open(f"/sys/kernel/irq/{irq}/actions") as f:
       actions = f.read().strip().split(',')
@@ -44,7 +45,7 @@ def get_irq_action(irq: int) -> list[str]:
   except FileNotFoundError:
     return []
 
-def get_irqs_for_action(action: str) -> list[str]:
+def get_irqs_for_action(action: str) -> List[str]:
   ret = []
   with open("/proc/interrupts") as f:
     for l in f.readlines():

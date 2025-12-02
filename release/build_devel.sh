@@ -1,4 +1,5 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
+
 set -ex
 
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" >/dev/null && pwd)"
@@ -19,15 +20,15 @@ cd $TARGET_DIR
 cp -r $SOURCE_DIR/.git $TARGET_DIR
 pre-commit uninstall || true
 
-echo "[-] bringing __nightly and devel in sync T=$SECONDS"
+echo "[-] bringing master-ci and devel in sync T=$SECONDS"
 cd $TARGET_DIR
 
-git fetch --depth 1 origin __nightly
+git fetch --depth 1 origin master-ci
 git fetch --depth 1 origin devel
 
-git checkout -f --track origin/__nightly
-git reset --hard __nightly
-git checkout __nightly
+git checkout -f --track origin/master-ci
+git reset --hard master-ci
+git checkout master-ci
 git reset --hard origin/devel
 git clean -xdff
 git lfs uninstall
@@ -43,7 +44,7 @@ git clean -xdff
 # do the files copy
 echo "[-] copying files T=$SECONDS"
 cd $SOURCE_DIR
-cp -pR --parents $(./release/release_files.py) $TARGET_DIR/
+cp -pR --parents $(cat release/files_*) $TARGET_DIR/
 
 # in the directory
 cd $TARGET_DIR
@@ -51,12 +52,8 @@ rm -f panda/board/obj/panda.bin.signed
 
 # include source commit hash and build date in commit
 GIT_HASH=$(git --git-dir=$SOURCE_DIR/.git rev-parse HEAD)
-GIT_COMMIT_DATE=$(git --git-dir=$SOURCE_DIR/.git show --no-patch --format='%ct %ci' HEAD)
 DATETIME=$(date '+%Y-%m-%dT%H:%M:%S')
 VERSION=$(cat $SOURCE_DIR/common/version.h | awk -F\" '{print $2}')
-
-echo -n "$GIT_HASH" > git_src_commit
-echo -n "$GIT_COMMIT_DATE" > git_src_commit_date
 
 echo "[-] committing version $VERSION T=$SECONDS"
 git add -f .
@@ -66,13 +63,6 @@ git commit -a -m "openpilot v$VERSION release
 date: $DATETIME
 master commit: $GIT_HASH
 "
-
-# should be no submodules or LFS files
-git submodule status
-if [ ! -z "$(git lfs ls-files)" ]; then
-  echo "LFS files detected!"
-  exit 1
-fi
 
 # ensure files are within GitHub's limit
 BIG_FILES="$(find . -type f -not -path './.git/*' -size +95M)"
@@ -85,7 +75,7 @@ fi
 
 if [ ! -z "$BRANCH" ]; then
   echo "[-] Pushing to $BRANCH T=$SECONDS"
-  git push -f origin __nightly:$BRANCH
+  git push -f origin master-ci:$BRANCH
 fi
 
 echo "[-] done T=$SECONDS, ready at $TARGET_DIR"

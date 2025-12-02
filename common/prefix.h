@@ -5,7 +5,6 @@
 
 #include "common/params.h"
 #include "common/util.h"
-#include "system/hardware/hw.h"
 
 class OpenpilotPrefix {
 public:
@@ -13,7 +12,7 @@ public:
     if (prefix.empty()) {
       prefix = util::random_string(15);
     }
-    msgq_path = Path::shm_path() + "/" + prefix;
+    msgq_path = "/dev/shm/" + prefix;
     bool ret = util::create_directories(msgq_path, 0777);
     assert(ret);
     setenv("OPENPILOT_PREFIX", prefix.c_str(), 1);
@@ -26,10 +25,6 @@ public:
       system(util::string_format("rm %s -rf", real_path.c_str()).c_str());
       unlink(param_path.c_str());
     }
-    if (getenv("COMMA_CACHE") == nullptr) {
-      system(util::string_format("rm %s -rf", Path::download_cache_root().c_str()).c_str());
-    }
-    system(util::string_format("rm %s -rf", Path::comma_home().c_str()).c_str());
     system(util::string_format("rm %s -rf", msgq_path.c_str()).c_str());
     unsetenv("OPENPILOT_PREFIX");
   }

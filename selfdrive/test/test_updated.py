@@ -1,8 +1,10 @@
+#!/usr/bin/env python3
 import datetime
 import os
 import pytest
 import time
 import tempfile
+import unittest
 import shutil
 import signal
 import subprocess
@@ -13,9 +15,9 @@ from openpilot.common.params import Params
 
 
 @pytest.mark.tici
-class TestUpdated:
+class TestUpdated(unittest.TestCase):
 
-  def setup_method(self):
+  def setUp(self):
     self.updated_proc = None
 
     self.tmp_dir = tempfile.TemporaryDirectory()
@@ -57,7 +59,7 @@ class TestUpdated:
     self.params.clear_all()
     os.sync()
 
-  def teardown_method(self):
+  def tearDown(self):
     try:
       if self.updated_proc is not None:
         self.updated_proc.terminate()
@@ -88,7 +90,7 @@ class TestUpdated:
     os.environ["UPDATER_STAGING_ROOT"] = self.staging_dir
     os.environ["UPDATER_NEOS_VERSION"] = self.neos_version
     os.environ["UPDATER_NEOSUPDATE_DIR"] = self.neosupdate_dir
-    updated_path = os.path.join(self.basedir, "system/updated.py")
+    updated_path = os.path.join(self.basedir, "selfdrive/updated.py")
     return subprocess.Popen(updated_path, env=os.environ)
 
   def _start_updater(self, offroad=True, nosleep=False):
@@ -164,8 +166,8 @@ class TestUpdated:
     # make sure LastUpdateTime is recent
     t = self._read_param("LastUpdateTime")
     last_update_time = datetime.datetime.fromisoformat(t)
-    td = datetime.datetime.now(datetime.UTC).replace(tzinfo=None) - last_update_time
-    assert td.total_seconds() < 10
+    td = datetime.datetime.utcnow() - last_update_time
+    self.assertLess(td.total_seconds(), 10)
     self.params.remove("LastUpdateTime")
 
     # wait a bit for the rest of the params to be written
@@ -173,13 +175,13 @@ class TestUpdated:
 
     # check params
     update = self._read_param("UpdateAvailable")
-    assert update == "1" == update_available, f"UpdateAvailable: {repr(update)}"
-    assert self._read_param("UpdateFailedCount") == "0"
+    self.assertEqual(update == "1", update_available, f"UpdateAvailable: {repr(update)}")
+    self.assertEqual(self._read_param("UpdateFailedCount"), "0")
 
     # TODO: check that the finalized update actually matches remote
     # check the .overlay_init and .overlay_consistent flags
-    assert os.path.isfile(os.path.join(self.basedir, ".overlay_init"))
-    assert os.path.isfile(os.path.join(self.finalized_dir, ".overlay_consistent")) == update_available
+    self.assertTrue(os.path.isfile(os.path.join(self.basedir, ".overlay_init")))
+    self.assertEqual(os.path.isfile(os.path.join(self.finalized_dir, ".overlay_consistent")), update_available)
 
 
   # *** test cases ***
@@ -212,7 +214,7 @@ class TestUpdated:
     self._check_update_state(True)
 
   # Let the updater run for 10 cycles, and write an update every cycle
-  @pytest.mark.skip("need to make this faster")
+  @unittest.skip("need to make this faster")
   def test_update_loop(self):
     self._start_updater()
 
@@ -241,12 +243,12 @@ class TestUpdated:
     # run another cycle, should have a new mtime
     self._wait_for_update(clear_param=True)
     second_mtime = os.path.getmtime(overlay_init_fn)
-    assert first_mtime != second_mtime
+    self.assertTrue(first_mtime != second_mtime)
 
     # run another cycle, mtime should be same as last cycle
     self._wait_for_update(clear_param=True)
     new_mtime = os.path.getmtime(overlay_init_fn)
-    assert second_mtime == new_mtime
+    self.assertTrue(second_mtime == new_mtime)
 
   # Make sure updated exits if another instance is running
   def test_multiple_instances(self):
@@ -258,7 +260,7 @@ class TestUpdated:
     # start another instance
     second_updated = self._get_updated_proc()
     ret_code = second_updated.wait(timeout=5)
-    assert ret_code is not None
+    self.assertTrue(ret_code is not None)
 
 
   # *** test cases with NEOS updates ***
@@ -275,10 +277,10 @@ class TestUpdated:
     self._start_updater()
     self._wait_for_update(clear_param=True)
     self._check_update_state(False)
-    assert not os.path.isdir(self.neosupdate_dir)
+    self.assertFalse(os.path.isdir(self.neosupdate_dir))
 
   # Let the updater run with no update for a cycle, then write an update
-  @pytest.mark.skip("TODO: only runs on device")
+  @unittest.skip("TODO: only runs on device")
   def test_update_with_neos_update(self):
     # bump the NEOS version and commit it
     self._run([
@@ -293,4 +295,8 @@ class TestUpdated:
     self._check_update_state(True)
 
     # TODO: more comprehensive check
-    assert os.path.isdir(self.neosupdate_dir)
+    self.assertTrue(os.path.isdir(self.neosupdate_dir))
+
+
+if __name__ == "__main__":
+  unittest.main()

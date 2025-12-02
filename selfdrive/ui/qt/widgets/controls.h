@@ -223,8 +223,10 @@ public:
       button_group->addButton(button, i);
     }
 
-    QObject::connect(button_group, QOverload<int>::of(&QButtonGroup::buttonClicked), [=](int id) {
-      params.put(key, std::to_string(id));
+    QObject::connect(button_group, QOverload<int, bool>::of(&QButtonGroup::buttonToggled), [=](int id, bool checked) {
+      if (checked) {
+        params.put(key, std::to_string(id));
+      }
     });
   }
 
@@ -232,19 +234,6 @@ public:
     for (auto btn : button_group->buttons()) {
       btn->setEnabled(enable);
     }
-  }
-
-  void setCheckedButton(int id) {
-    button_group->button(id)->setChecked(true);
-  }
-
-  void refresh() {
-    int value = atoi(params.get(key).c_str());
-    button_group->button(value)->setChecked(true);
-  }
-
-  void showEvent(QShowEvent *event) override {
-    refresh();
   }
 
 private:
@@ -262,7 +251,7 @@ class ListWidget : public QWidget {
     outer_layout.addLayout(&inner_layout);
     inner_layout.setMargin(0);
     inner_layout.setSpacing(25); // default spacing is 25
-    outer_layout.addStretch(1);
+    outer_layout.addStretch();
   }
   inline void addItem(QWidget *w) { inner_layout.addWidget(w); }
   inline void addItem(QLayout *layout) { inner_layout.addLayout(layout); }

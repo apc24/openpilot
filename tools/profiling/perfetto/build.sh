@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 
 if [ ! -d perfetto ]; then
   git clone https://android.googlesource.com/platform/external/perfetto/

@@ -1,7 +1,7 @@
 import random
 
 from cereal import log
-from openpilot.system.hardware.base import HardwareBase
+from openpilot.system.hardware.base import HardwareBase, ThermalConfig
 
 NetworkType = log.DeviceState.NetworkType
 NetworkStrength = log.DeviceState.NetworkStrength
@@ -14,6 +14,9 @@ class Pc(HardwareBase):
   def get_device_type(self):
     return "pc"
 
+  def get_sound_card_online(self):
+    return True
+
   def reboot(self, reason=None):
     print("REBOOT!")
 
@@ -21,7 +24,7 @@ class Pc(HardwareBase):
     print("uninstall")
 
   def get_imei(self, slot):
-    return f"{random.randint(0, 1 << 32):015d}"
+    return "%015d" % random.randint(0, 1 << 32)
 
   def get_serial(self):
     return "cccccccc"
@@ -52,6 +55,9 @@ class Pc(HardwareBase):
 
   def shutdown(self):
     print("SHUTDOWN!")
+
+  def get_thermal_config(self):
+    return ThermalConfig(cpu=((None,), 1), gpu=((None,), 1), mem=(None, 1), bat=(None, 1), pmic=((None,), 1))
 
   def set_screen_brightness(self, percentage):
     pass

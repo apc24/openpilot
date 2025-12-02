@@ -10,7 +10,7 @@ from pathlib import Path
 
 from cereal import log
 from openpilot.common.gpio import gpio_set, gpio_init, get_irqs_for_action
-from openpilot.system.hardware.base import HardwareBase, ThermalConfig, ThermalZone
+from openpilot.system.hardware.base import HardwareBase, ThermalConfig
 from openpilot.system.hardware.tici import iwlist
 from openpilot.system.hardware.tici.pins import GPIO
 from openpilot.system.hardware.tici.amplifier import Amplifier
@@ -76,7 +76,7 @@ def sudo_write(val, path):
 
 def sudo_read(path: str) -> str:
   try:
-    return subprocess.check_output(f"sudo cat {path}", shell=True, encoding='utf8').strip()
+    return subprocess.check_output(f"sudo cat {path}", shell=True, encoding='utf8')
   except Exception:
     return ""
 
@@ -94,7 +94,11 @@ def get_device_type():
   # lru_cache and cache can cause memory leaks when used in classes
   with open("/sys/firmware/devicetree/base/model") as f:
     model = f.read().strip('\x00')
-  return model.split('comma ')[-1]
+  model = model.split('comma ')[-1]
+  # TODO: remove this with AGNOS 7+
+  if model.startswith('Qualcomm'):
+    model = 'tici'
+  return model
 
 class Tici(HardwareBase):
   @cached_property
@@ -112,8 +116,6 @@ class Tici(HardwareBase):
 
   @cached_property
   def amplifier(self):
-    if self.get_device_type() == "mici":
-      return None
     return Amplifier()
 
   def get_os_version(self):
@@ -122,6 +124,12 @@ class Tici(HardwareBase):
 
   def get_device_type(self):
     return get_device_type()
+
+  def get_sound_card_online(self):
+    if os.path.isfile('/proc/asound/card0/state'):
+      with open('/proc/asound/card0/state') as f:
+        return f.read().strip() == 'ONLINE'
+    return False
 
   def reboot(self, reason=None):
     subprocess.check_output(["sudo", "reboot"])
@@ -205,8 +213,6 @@ class Tici(HardwareBase):
     return str(self.get_modem().Get(MM_MODEM, 'EquipmentIdentifier', dbus_interface=DBUS_PROPS, timeout=TIMEOUT))
 
   def get_network_info(self):
-    if self.get_device_type() == "mici":
-      return None
     try:
       modem = self.get_modem()
       info = modem.Command("AT+QNWINFO", math.ceil(TIMEOUT), dbus_interface=MM_MODEM, timeout=TIMEOUT)
@@ -296,9 +302,20 @@ class Tici(HardwareBase):
     except Exception:
       return None
 
+  def get_modem_nv(self):
+    timeout = 0.2  # Default timeout is too short
+    files = (
+      '/nv/item_files/modem/mmode/ue_usage_setting',
+      '/nv/item_files/ims/IMS_enable',
+      '/nv/item_files/modem/mmode/sms_only',
+    )
+    try:
+      modem = self.get_modem()
+      return { fn: str(modem.Command(f'AT+QNVFR="{fn}"', math.ceil(timeout), dbus_interface=MM_MODEM, timeout=timeout)) for fn in files}
+    except Exception:
+      return None
+
   def get_modem_temperatures(self):
-    if self.get_device_type() == "mici":
-      return []
     timeout = 0.2  # Default timeout is too short
     try:
       modem = self.get_modem()
@@ -327,19 +344,12 @@ class Tici(HardwareBase):
     os.system("sudo poweroff")
 
   def get_thermal_config(self):
-    intake, exhaust, case = None, None, None
-    if self.get_device_type() == "mici":
-      case = ThermalZone("case")
-      intake = ThermalZone("intake")
-      exhaust = ThermalZone("exhaust")
-    return ThermalConfig(cpu=[ThermalZone(f"cpu{i}-silver-usr") for i in range(4)] +
-                             [ThermalZone(f"cpu{i}-gold-usr") for i in range(4)],
-                         gpu=[ThermalZone("gpu0-usr"), ThermalZone("gpu1-usr")],
-                         memory=ThermalZone("ddr-usr"),
-                         pmic=[ThermalZone("pm8998_tz"), ThermalZone("pm8005_tz")],
-                         intake=intake,
-                         exhaust=exhaust,
-                         case=case)
+    return ThermalConfig(cpu=(["cpu%d-silver-usr" % i for i in range(4)] +
+                              ["cpu%d-gold-usr" % i for i in range(4)], 1000),
+                         gpu=(("gpu0-usr", "gpu1-usr"), 1000),
+                         mem=("ddr-usr", 1000),
+                         bat=(None, 1),
+                         pmic=(("pm8998_tz", "pm8005_tz"), 1000))
 
   def set_screen_brightness(self, percentage):
     try:
@@ -364,33 +374,36 @@ class Tici(HardwareBase):
 
   def set_power_save(self, powersave_enabled):
     # amplifier, 100mW at idle
-    if self.amplifier is not None:
-      self.amplifier.set_global_shutdown(amp_disabled=powersave_enabled)
-      if not powersave_enabled:
-        self.amplifier.initialize_configuration(self.get_device_type())
+    self.amplifier.set_global_shutdown(amp_disabled=powersave_enabled)
+    if not powersave_enabled:
+      self.amplifier.initialize_configuration(self.get_device_type())
 
     # *** CPU config ***
 
-    # offline big cluster
-    for i in range(4, 8):
+    # offline big cluster, leave core 4 online for boardd
+    for i in range(5, 8):
       val = '0' if powersave_enabled else '1'
       sudo_write(val, f'/sys/devices/system/cpu/cpu{i}/online')
 
     for n in ('0', '4'):
-      if powersave_enabled and n == '4':
-        continue
       gov = 'ondemand' if powersave_enabled else 'performance'
       sudo_write(gov, f'/sys/devices/system/cpu/cpufreq/policy{n}/scaling_governor')
 
     # *** IRQ config ***
 
-    # GPU, modeld core
-    affine_irq(7, "kgsl-3d0")
+    # boardd core
+    affine_irq(4, "spi_geni")         # SPI
+    affine_irq(4, "xhci-hcd:usb3")    # aux panda USB (or potentially anything else on USB)
+    if "tici" in self.get_device_type():
+      affine_irq(4, "xhci-hcd:usb1")  # internal panda USB (also modem)
+
+    # GPU
+    affine_irq(5, "kgsl-3d0")
 
     # camerad core
-    camera_irqs = ("a5", "cci", "cpas_camnoc", "cpas-cdm", "csid", "ife", "csid-lite", "ife-lite")
+    camera_irqs = ("cci", "cpas_camnoc", "cpas-cdm", "csid", "ife", "csid-lite", "ife-lite")
     for n in camera_irqs:
-      affine_irq(6, n)
+      affine_irq(5, n)
 
   def get_gpu_usage_percent(self):
     try:
@@ -401,10 +414,9 @@ class Tici(HardwareBase):
       return 0
 
   def initialize_hardware(self):
-    if self.amplifier is not None:
-      self.amplifier.initialize_configuration(self.get_device_type())
+    self.amplifier.initialize_configuration(self.get_device_type())
 
-    # Allow hardwared to write engagement status to kmsg
+    # Allow thermald to write engagement status to kmsg
     os.system("sudo chmod a+w /dev/kmsg")
 
     # Ensure fan gpio is enabled so fan runs until shutdown, also turned on at boot by the ABL
@@ -423,8 +435,8 @@ class Tici(HardwareBase):
 
     # *** GPU config ***
     # https://github.com/commaai/agnos-kernel-sdm845/blob/master/arch/arm64/boot/dts/qcom/sdm845-gpu.dtsi#L216
-    sudo_write("0", "/sys/class/kgsl/kgsl-3d0/min_pwrlevel")
-    sudo_write("0", "/sys/class/kgsl/kgsl-3d0/max_pwrlevel")
+    sudo_write("1", "/sys/class/kgsl/kgsl-3d0/min_pwrlevel")
+    sudo_write("1", "/sys/class/kgsl/kgsl-3d0/max_pwrlevel")
     sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_bus_on")
     sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_clk_on")
     sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_rail_on")
@@ -441,18 +453,6 @@ class Tici(HardwareBase):
     sudo_write("N", "/sys/kernel/debug/msm_vidc/clock_scaling")
     sudo_write("Y", "/sys/kernel/debug/msm_vidc/disable_thermal_mitigation")
 
-    # pandad core
-    affine_irq(3, "spi_geni")         # SPI
-    if "tici" in self.get_device_type():
-      affine_irq(3, "xhci-hcd:usb3")  # aux panda USB (or potentially anything else on USB)
-      affine_irq(3, "xhci-hcd:usb1")  # internal panda USB (also modem)
-    try:
-      pid = subprocess.check_output(["pgrep", "-f", "spi0"], encoding='utf8').strip()
-      subprocess.call(["sudo", "chrt", "-f", "-p", "1", pid])
-      subprocess.call(["sudo", "taskset", "-pc", "3", pid])
-    except subprocess.CalledProcessException as e:
-      print(str(e))
-
   def configure_modem(self):
     sim_id = self.get_sim_info().get('sim_id', '')
 
@@ -463,45 +463,24 @@ class Tici(HardwareBase):
       manufacturer = None
 
     cmds = []
+    if manufacturer == 'Cavli Inc.':
+      cmds += [
+        # use sim slot
+        'AT^SIMSWAP=1',
 
-    if self.get_device_type() in ("tici", "tizi"):
-      # clear out old blue prime initial APN
-      os.system('mmcli -m any --3gpp-set-initial-eps-bearer-settings="apn="')
-
+        # configure ECM mode
+        'AT$QCPCFG=usbNet,1'
+      ]
+    else:
       cmds += [
         # configure modem as data-centric
         'AT+QNVW=5280,0,"0102000000000000"',
         'AT+QNVFW="/nv/item_files/ims/IMS_enable",00',
         'AT+QNVFW="/nv/item_files/modem/mmode/ue_usage_setting",01',
       ]
-      if self.get_device_type() == "tizi":
-        # SIM hot swap, not routed on tici
-        cmds += [
-          'AT+QSIMDET=1,0',
-          'AT+QSIMSTAT=1',
-        ]
-    elif manufacturer == 'Cavli Inc.':
-      cmds += [
-        'AT^SIMSWAP=1',     # use SIM slot, instead of internal eSIM
-        'AT$QCSIMSLEEP=0',  # disable SIM sleep
-        'AT$QCSIMCFG=SimPowerSave,0',  # more sleep disable
 
-        # ethernet config
-        'AT$QCPCFG=usbNet,0',
-        'AT$QCNETDEVCTL=3,1',
-      ]
-    else:
-      # this modem gets upset with too many AT commands
-      if sim_id is None or len(sim_id) == 0:
-        cmds += [
-          # SIM sleep disable
-          'AT$QCSIMSLEEP=0',
-          'AT$QCSIMCFG=SimPowerSave,0',
-
-          # ethernet config
-          'AT$QCPCFG=usbNet,1',
-        ]
-
+      # clear out old blue prime initial APN
+      os.system('mmcli -m any --3gpp-set-initial-eps-bearer-settings="apn="')
     for cmd in cmds:
       try:
         modem.Command(cmd, math.ceil(TIMEOUT), dbus_interface=MM_MODEM, timeout=TIMEOUT)
@@ -509,8 +488,8 @@ class Tici(HardwareBase):
         pass
 
     # eSIM prime
-    dest = "/etc/NetworkManager/system-connections/esim.nmconnection"
-    if sim_id.startswith('8985235') and not os.path.exists(dest):
+    if sim_id.startswith('8985235'):
+      dest = "/etc/NetworkManager/system-connections/esim.nmconnection"
       with open(Path(__file__).parent/'esim.nmconnection') as f, tempfile.NamedTemporaryFile(mode='w') as tf:
         dat = f.read()
         dat = dat.replace("sim-id=", f"sim-id={sim_id}")
@@ -569,10 +548,8 @@ class Tici(HardwareBase):
 
   def reset_internal_panda(self):
     gpio_init(GPIO.STM_RST_N, True)
-    gpio_init(GPIO.STM_BOOT0, True)
 
     gpio_set(GPIO.STM_RST_N, 1)
-    gpio_set(GPIO.STM_BOOT0, 0)
     time.sleep(1)
     gpio_set(GPIO.STM_RST_N, 0)
 
@@ -599,4 +576,3 @@ if __name__ == "__main__":
   t.configure_modem()
   t.initialize_hardware()
   t.set_power_save(False)
-  print(t.get_sim_info())

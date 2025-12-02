@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cmath>
+#include <deque>
 #include <vector>
 #include <utility>
 
@@ -9,7 +10,6 @@
 #include <QByteArray>
 #include <QDoubleValidator>
 #include <QFont>
-#include <QFontMetrics>
 #include <QPainter>
 #include <QRegExpValidator>
 #include <QSocketNotifier>
@@ -77,7 +77,6 @@ public:
 
 private:
   std::array<QStaticText, 256> hex_text_table;
-  QFontMetrics font_metrics;
   QFont fixed_font;
   QSize byte_size = {};
   bool multiple_lines = false;
@@ -161,6 +160,20 @@ private:
   QSocketNotifier *sn;
 };
 
+class MonotonicBuffer {
+public:
+  MonotonicBuffer(size_t initial_size) : next_buffer_size(initial_size) {}
+  ~MonotonicBuffer();
+  void *allocate(size_t bytes, size_t alignment = 16ul);
+  void deallocate(void *p) {}
+
+private:
+  void *current_buf = nullptr;
+  size_t next_buffer_size = 0;
+  size_t available = 0;
+  std::deque<void *> buffers;
+  static constexpr float growth_factor = 1.5;
+};
+
 int num_decimals(double num);
 QString signalToolTip(const cabana::Signal *sig);
-inline QString toHexString(int value) { return QString("0x%1").arg(QString::number(value, 16).toUpper(), 2, '0'); }

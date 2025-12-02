@@ -16,12 +16,7 @@
 #define V4L2_QCOM_BUF_FLAG_CODECCONFIG 0x00020000
 #define V4L2_QCOM_BUF_FLAG_EOS 0x02000000
 
-/*
-  kernel debugging:
-  echo 0xff > /sys/module/videobuf2_core/parameters/debug
-  echo 0x7fffffff > /sys/kernel/debug/msm_vidc/debug_level
-  echo 0xff > /sys/devices/platform/soc/aa00000.qcom,vidc/video4linux/video33/dev_debug
-*/
+// echo 0x7fffffff > /sys/kernel/debug/msm_vidc/debug_level
 const int env_debug_encoder = (getenv("DEBUG_ENCODER") != NULL) ? atoi(getenv("DEBUG_ENCODER")) : 0;
 
 static void checked_ioctl(int fd, unsigned long request, void *argp) {
@@ -133,7 +128,7 @@ void V4LEncoder::dequeue_handler(V4LEncoder *e) {
         assert(extra.timestamp_eof/1000 == ts); // stay in sync
         frame_id = extra.frame_id;
         ++idx;
-        e->publisher_publish(e->segment_num, idx, extra, flags, header, kj::arrayPtr<capnp::byte>(buf, bytesused));
+        e->publisher_publish(e, e->segment_num, idx, extra, flags, header, kj::arrayPtr<capnp::byte>(buf, bytesused));
       }
 
       if (env_debug_encoder) {
@@ -155,7 +150,7 @@ void V4LEncoder::dequeue_handler(V4LEncoder *e) {
 
 V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_height)
     : VideoEncoder(encoder_info, in_width, in_height) {
-  fd = HANDLE_EINTR(open("/dev/v4l/by-path/platform-aa00000.qcom_vidc-video-index1", O_RDWR|O_NONBLOCK));
+  fd = open("/dev/v4l/by-path/platform-aa00000.qcom_vidc-video-index1", O_RDWR|O_NONBLOCK);
   assert(fd >= 0);
 
   struct v4l2_capability cap;
@@ -186,7 +181,7 @@ V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_hei
         // TODO: more stuff here? we don't know
         .timeperframe = {
           .numerator = 1,
-          .denominator = (unsigned int)encoder_info.fps
+          .denominator = 20
         }
       }
     }
@@ -275,7 +270,7 @@ V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_hei
   }
 }
 
-void V4LEncoder::encoder_open() {
+void V4LEncoder::encoder_open(const char* path) {
   dequeue_handler_thread = std::thread(V4LEncoder::dequeue_handler, this);
   this->is_open = true;
   this->counter = 0;

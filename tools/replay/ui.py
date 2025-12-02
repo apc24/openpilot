@@ -8,16 +8,16 @@ import numpy as np
 import pygame
 
 import cereal.messaging as messaging
+from openpilot.common.numpy_fast import clip
 from openpilot.common.basedir import BASEDIR
-from openpilot.common.transformations.camera import DEVICE_CAMERAS
-from openpilot.tools.replay.lib.ui_helpers import (UP,
-                                         BLACK, GREEN,
+from openpilot.tools.replay.lib.ui_helpers import (_BB_TO_FULL_FRAME, UP,
+                                         _INTRINSICS, BLACK, GREEN,
                                          YELLOW, Calibration,
                                          get_blank_lid_overlay, init_plots,
                                          maybe_update_radar_points, plot_lead,
                                          plot_model,
                                          pygame_modules_have_loaded)
-from msgq.visionipc import VisionIpcClient, VisionStreamType
+from cereal.visionipc import VisionIpcClient, VisionStreamType
 
 os.environ['BASEDIR'] = BASEDIR
 
@@ -55,7 +55,7 @@ def ui_thread(addr):
   top_down_surface = pygame.surface.Surface((UP.lidar_x, UP.lidar_y), 0, 8)
 
   sm = messaging.SubMaster(['carState', 'longitudinalPlan', 'carControl', 'radarState', 'liveCalibration', 'controlsState',
-                            'selfdriveState', 'liveTracks', 'modelV2', 'liveParameters', 'roadCameraState'], addr=addr)
+                            'liveTracks', 'modelV2', 'liveParameters'], addr=addr)
 
   img = np.zeros((480, 640, 3), dtype='uint8')
   imgff = None
@@ -100,11 +100,8 @@ def ui_thread(addr):
   draw_plots = init_plots(plot_arr, name_to_arr_idx, plot_xlims, plot_ylims, plot_names, plot_colors, plot_styles)
 
   vipc_client = VisionIpcClient("camerad", VisionStreamType.VISION_STREAM_ROAD, True)
-  while True:
-    for event in pygame.event.get():
-      if event.type == pygame.QUIT:
-        pygame.quit()
-        sys.exit()
+  while 1:
+    list(pygame.event.get())
 
     screen.fill((64, 64, 64))
     lid_overlay = lid_overlay_blank.copy()
@@ -115,27 +112,20 @@ def ui_thread(addr):
       vipc_client.connect(True)
 
     yuv_img_raw = vipc_client.recv()
+
     if yuv_img_raw is None or not yuv_img_raw.data.any():
       continue
-
-    sm.update(0)
-
-    camera = DEVICE_CAMERAS[("tici", str(sm['roadCameraState'].sensor))]
 
     imgff = np.frombuffer(yuv_img_raw.data, dtype=np.uint8).reshape((len(yuv_img_raw.data) // vipc_client.stride, vipc_client.stride))
     num_px = vipc_client.width * vipc_client.height
     rgb = cv2.cvtColor(imgff[:vipc_client.height * 3 // 2, :vipc_client.width], cv2.COLOR_YUV2RGB_NV12)
 
-    qcam = "QCAM" in os.environ
-    bb_scale = (528 if qcam else camera.fcam.width) / 640.
-    calib_scale = camera.fcam.width / 640.
-    zoom_matrix = np.asarray([
-        [bb_scale, 0., 0.],
-        [0., bb_scale, 0.],
-        [0., 0., 1.]])
+    zoom_matrix = _BB_TO_FULL_FRAME[num_px]
     cv2.warpAffine(rgb, zoom_matrix[:2], (img.shape[1], img.shape[0]), dst=img, flags=cv2.WARP_INVERSE_MAP)
 
-    intrinsic_matrix = camera.fcam.intrinsics
+    intrinsic_matrix = _INTRINSICS[num_px]
+
+    sm.update(0)
 
     w = sm['controlsState'].lateralControlState.which()
     if w == 'lqrStateDEPRECATED':
@@ -151,12 +141,13 @@ def ui_thread(addr):
     plot_arr[-1, name_to_arr_idx['angle_steers_k']] = angle_steers_k
     plot_arr[-1, name_to_arr_idx['gas']] = sm['carState'].gas
     # TODO gas is deprecated
-    plot_arr[-1, name_to_arr_idx['computer_gas']] = np.clip(sm['carControl'].actuators.accel/4.0, 0.0, 1.0)
+    plot_arr[-1, name_to_arr_idx['computer_gas']] = clip(sm['carControl'].actuators.accel/4.0, 0.0, 1.0)
     plot_arr[-1, name_to_arr_idx['user_brake']] = sm['carState'].brake
-    plot_arr[-1, name_to_arr_idx['steer_torque']] = sm['carControl'].actuators.torque * ANGLE_SCALE
+    plot_arr[-1, name_to_arr_idx['steer_torque']] = sm['carControl'].actuators.steer * ANGLE_SCALE
     # TODO brake is deprecated
-    plot_arr[-1, name_to_arr_idx['computer_brake']] = np.clip(-sm['carControl'].actuators.accel/4.0, 0.0, 1.0)
+    plot_arr[-1, name_to_arr_idx['computer_brake']] = clip(-sm['carControl'].actuators.accel/4.0, 0.0, 1.0)
     plot_arr[-1, name_to_arr_idx['v_ego']] = sm['carState'].vEgo
+    plot_arr[-1, name_to_arr_idx['v_pid']] = sm['controlsState'].vPid
     plot_arr[-1, name_to_arr_idx['v_cruise']] = sm['carState'].cruiseState.speed
     plot_arr[-1, name_to_arr_idx['a_ego']] = sm['carState'].aEgo
 
@@ -170,19 +161,19 @@ def ui_thread(addr):
       plot_lead(sm['radarState'], top_down)
 
     # draw all radar points
-    maybe_update_radar_points(sm['liveTracks'].points, top_down[1])
+    maybe_update_radar_points(sm['liveTracks'], top_down[1])
 
     if sm.updated['liveCalibration'] and num_px:
       rpyCalib = np.asarray(sm['liveCalibration'].rpyCalib)
-      calibration = Calibration(num_px, rpyCalib, intrinsic_matrix, calib_scale)
+      calibration = Calibration(num_px, rpyCalib, intrinsic_matrix)
 
     # *** blits ***
     pygame.surfarray.blit_array(camera_surface, img.swapaxes(0, 1))
     screen.blit(camera_surface, (0, 0))
 
     # display alerts
-    alert_line1 = alert1_font.render(sm['selfdriveState'].alertText1, True, (255, 0, 0))
-    alert_line2 = alert2_font.render(sm['selfdriveState'].alertText2, True, (255, 0, 0))
+    alert_line1 = alert1_font.render(sm['controlsState'].alertText1, True, (255, 0, 0))
+    alert_line2 = alert2_font.render(sm['controlsState'].alertText2, True, (255, 0, 0))
     screen.blit(alert_line1, (180, 150))
     screen.blit(alert_line2, (180, 190))
 
@@ -197,7 +188,7 @@ def ui_thread(addr):
     SPACING = 25
 
     lines = [
-      info_font.render("ENABLED", True, GREEN if sm['selfdriveState'].enabled else BLACK),
+      info_font.render("ENABLED", True, GREEN if sm['controlsState'].enabled else BLACK),
       info_font.render("SPEED: " + str(round(sm['carState'].vEgo, 1)) + " m/s", True, YELLOW),
       info_font.render("LONG CONTROL STATE: " + str(sm['controlsState'].longControlState), True, YELLOW),
       info_font.render("LONG MPC SOURCE: " + str(sm['longitudinalPlan'].longitudinalPlanSource), True, YELLOW),
@@ -232,6 +223,6 @@ if __name__ == "__main__":
 
   if args.ip_address != "127.0.0.1":
     os.environ["ZMQ"] = "1"
-    messaging.reset_context()
+    messaging.context = messaging.Context()
 
   ui_thread(args.ip_address)

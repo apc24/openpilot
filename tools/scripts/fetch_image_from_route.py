@@ -31,11 +31,11 @@ print("got api response")
 
 segments = r.json()[camera]
 if segment >= len(segments):
-  raise Exception(f"segment {segment} not found, got {len(segments)} segments")
+  raise Exception("segment %d not found, got %d segments" % (segment, len(segments)))
 
 fr = FrameReader(segments[segment])
 if frame >= fr.frame_count:
-  raise Exception("frame {frame} not found, got {fr.frame_count} frames")
+  raise Exception("frame %d not found, got %d frames" % (frame, fr.frame_count))
 
 im = Image.fromarray(fr.get(frame, count=1, pix_fmt="rgb24")[0])
 fn = f"uxxx_{route.replace('|', '_')}_{segment}_{frame}.png"
