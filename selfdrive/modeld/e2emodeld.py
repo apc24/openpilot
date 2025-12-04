@@ -870,7 +870,6 @@ def main(demo=False):
             break
           time.sleep(0.1)
 
-
       # 接続成功の確認
       if vipc_client_main.connect(False):
         cloudlog.warning(f"✅ Main camera connected: {vipc_client_main.buffer_len} buffers "
