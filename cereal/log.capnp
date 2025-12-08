@@ -253,17 +253,6 @@ struct InitData {
   }
 }
 
-# E2E Model Output Structure
-struct E2EOutput {
-  # Model predictions
-  aEgo @0 :Float32;                    # 予測された加速度(m/s2)
-  steeringTorque @1 :Float32;          # 予測されたステアリングトルク
-  
-  # Message metadata
-  timestamp @2 :UInt64;                # タイムスタンプ(nanoseconds)
-  isValid @3 :Bool;                    # 推論結果が有効かどうか
-}
-
 struct FrameData {
   frameId @0 :UInt32;
   frameIdSensor @25 :UInt32;
@@ -2659,9 +2648,6 @@ struct Event {
     customReserved17 @143 :Custom.CustomReserved17;
     customReserved18 @144 :Custom.CustomReserved18;
     customReserved19 @145 :Custom.CustomReserved19;
-
-    # *********** E2E Model Output ***********
-    e2eOutput @127 :E2EOutput;
 
     # *********** legacy + deprecated ***********
     model @9 :Legacy.ModelData; # TODO: rename modelV2 and mark this as deprecated
