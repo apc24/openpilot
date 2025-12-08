@@ -1,6 +1,5 @@
 import numpy as np
-from cereal import log
-from opendbc.car.vehicle_model import ACCELERATION_DUE_TO_GRAVITY
+from openpilot.common.constants import ACCELERATION_DUE_TO_GRAVITY
 from openpilot.common.realtime import DT_CTRL, DT_MDL
 
 MIN_SPEED = 1.0
@@ -19,8 +18,11 @@ def clamp(val, min_val, max_val):
   clamped_val = float(np.clip(val, min_val, max_val))
   return clamped_val, clamped_val != val
 
+def smooth_value(val, prev_val, tau, dt=DT_MDL):
+  alpha = 1 - np.exp(-dt/tau) if tau > 0 else 1
+  return alpha * val + (1 - alpha) * prev_val
 
-def clip_curvature(v_ego, prev_curvature, new_curvature, roll):
+def clip_curvature(v_ego, prev_curvature, new_curvature, roll) -> tuple[float, bool]:
   # This function respects ISO lateral jerk and acceleration limits + a max curvature
   v_ego = max(v_ego, MIN_SPEED)
   max_curvature_rate = MAX_LATERAL_JERK / (v_ego ** 2)  # inexact calculation, check https://github.com/commaai/openpilot/pull/24755
@@ -37,14 +39,6 @@ def clip_curvature(v_ego, prev_curvature, new_curvature, roll):
   return float(new_curvature), limited_accel or limited_max_curv
 
 
-def get_speed_error(modelV2: log.ModelDataV2, v_ego: float) -> float:
-  # ToDo: Try relative error, and absolute speed
-  if len(modelV2.temporalPose.trans):
-    vel_err = np.clip(modelV2.temporalPose.trans[0] - v_ego, -MAX_VEL_ERR, MAX_VEL_ERR)
-    return float(vel_err)
-  return 0.0
-
-
 def get_accel_from_plan(speeds, accels, t_idxs, action_t=DT_MDL, vEgoStopping=0.05):
   if len(speeds) == len(t_idxs):
     v_now = speeds[0]
@@ -59,3 +53,13 @@ def get_accel_from_plan(speeds, accels, t_idxs, action_t=DT_MDL, vEgoStopping=0.
   should_stop = (v_target < vEgoStopping and
                  v_target_1sec < vEgoStopping)
   return a_target, should_stop
+
+def curv_from_psis(psi_target, psi_rate, vego, action_t):
+  vego = np.clip(vego, MIN_SPEED, np.inf)
+  curv_from_psi = psi_target / (vego * action_t)
+  return 2*curv_from_psi - psi_rate / vego
+
+def get_curvature_from_plan(yaws, yaw_rates, t_idxs, vego, action_t):
+  psi_target = np.interp(action_t, t_idxs, yaws)
+  psi_rate = yaw_rates[0]
+  return curv_from_psis(psi_target, psi_rate, vego, action_t)

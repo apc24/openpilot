@@ -1,4 +1,3 @@
-import json
 import math
 import os
 import subprocess
@@ -9,9 +8,11 @@ from functools import cached_property, lru_cache
 from pathlib import Path
 
 from cereal import log
+from openpilot.common.util import sudo_read, sudo_write
 from openpilot.common.gpio import gpio_set, gpio_init, get_irqs_for_action
-from openpilot.system.hardware.base import HardwareBase, ThermalConfig, ThermalZone
+from openpilot.system.hardware.base import HardwareBase, LPABase, ThermalConfig, ThermalZone
 from openpilot.system.hardware.tici import iwlist
+from openpilot.system.hardware.tici.esim import TiciLPA
 from openpilot.system.hardware.tici.pins import GPIO
 from openpilot.system.hardware.tici.amplifier import Amplifier
 
@@ -60,25 +61,6 @@ NetworkStrength = log.DeviceState.NetworkStrength
 MM_MODEM_ACCESS_TECHNOLOGY_UMTS = 1 << 5
 MM_MODEM_ACCESS_TECHNOLOGY_LTE = 1 << 14
 
-
-def sudo_write(val, path):
-  try:
-    with open(path, 'w') as f:
-      f.write(str(val))
-  except PermissionError:
-    os.system(f"sudo chmod a+w {path}")
-    try:
-      with open(path, 'w') as f:
-        f.write(str(val))
-    except PermissionError:
-      # fallback for debugfs files
-      os.system(f"sudo su -c 'echo {val} > {path}'")
-
-def sudo_read(path: str) -> str:
-  try:
-    return subprocess.check_output(f"sudo cat {path}", shell=True, encoding='utf8').strip()
-  except Exception:
-    return ""
 
 def affine_irq(val, action):
   irqs = get_irqs_for_action(action)
@@ -133,6 +115,26 @@ class Tici(HardwareBase):
 
   def get_serial(self):
     return self.get_cmdline()['androidboot.serialno']
+
+  def get_voltage(self):
+    with open("/sys/class/hwmon/hwmon1/in1_input") as f:
+      return int(f.read())
+
+  def get_current(self):
+    with open("/sys/class/hwmon/hwmon1/curr1_input") as f:
+      return int(f.read())
+
+  def set_ir_power(self, percent: int):
+    if self.get_device_type() in ("tici", "tizi"):
+      return
+
+    value = int((percent / 100) * 300)
+    with open("/sys/class/leds/led:switch_2/brightness", "w") as f:
+      f.write("0\n")
+    with open("/sys/class/leds/led:torch_2/brightness", "w") as f:
+      f.write(f"{value}\n")
+    with open("/sys/class/leds/led:switch_2/brightness", "w") as f:
+      f.write(f"{value}\n")
 
   def get_network_type(self):
     try:
@@ -197,6 +199,9 @@ class Tici(HardwareBase):
         'sim_state': ["READY"],
         'data_connected': modem.Get(MM_MODEM, 'State', dbus_interface=DBUS_PROPS, timeout=TIMEOUT) == MM_MODEM_STATE.CONNECTED,
       }
+
+  def get_sim_lpa(self) -> LPABase:
+    return TiciLPA()
 
   def get_imei(self, slot):
     if slot != 0:
@@ -297,25 +302,14 @@ class Tici(HardwareBase):
       return None
 
   def get_modem_temperatures(self):
-    if self.get_device_type() == "mici":
-      return []
     timeout = 0.2  # Default timeout is too short
     try:
       modem = self.get_modem()
       temps = modem.Command("AT+QTEMP", math.ceil(timeout), dbus_interface=MM_MODEM, timeout=timeout)
-      return list(map(int, temps.split(' ')[1].split(',')))
+      return list(filter(lambda t: t != 255, map(int, temps.split(' ')[1].split(','))))
     except Exception:
       return []
 
-  def get_nvme_temperatures(self):
-    ret = []
-    try:
-      out = subprocess.check_output("sudo smartctl -aj /dev/nvme0", shell=True)
-      dat = json.loads(out)
-      ret = list(map(int, dat["nvme_smart_health_information_log"]["temperature_sensors"]))
-    except Exception:
-      pass
-    return ret
 
   def get_current_power_draw(self):
     return (self.read_param_file("/sys/class/hwmon/hwmon1/power1_input", int) / 1e6)
@@ -335,11 +329,19 @@ class Tici(HardwareBase):
     return ThermalConfig(cpu=[ThermalZone(f"cpu{i}-silver-usr") for i in range(4)] +
                              [ThermalZone(f"cpu{i}-gold-usr") for i in range(4)],
                          gpu=[ThermalZone("gpu0-usr"), ThermalZone("gpu1-usr")],
+                         dsp=ThermalZone("compute-hvx-usr"),
                          memory=ThermalZone("ddr-usr"),
                          pmic=[ThermalZone("pm8998_tz"), ThermalZone("pm8005_tz")],
                          intake=intake,
                          exhaust=exhaust,
                          case=case)
+
+  def set_display_power(self, on):
+    try:
+      with open("/sys/class/backlight/panel0-backlight/bl_power", "w") as f:
+        f.write("0" if on else "4")
+    except Exception:
+      pass
 
   def set_screen_brightness(self, percentage):
     try:
@@ -417,14 +419,15 @@ class Tici(HardwareBase):
     sudo_write("f", "/proc/irq/default_smp_affinity")
 
     # move these off the default core
-    affine_irq(1, "msm_drm")   # display
     affine_irq(1, "msm_vidc")  # encoders
     affine_irq(1, "i2c_geni")  # sensors
 
     # *** GPU config ***
     # https://github.com/commaai/agnos-kernel-sdm845/blob/master/arch/arm64/boot/dts/qcom/sdm845-gpu.dtsi#L216
-    sudo_write("0", "/sys/class/kgsl/kgsl-3d0/min_pwrlevel")
-    sudo_write("0", "/sys/class/kgsl/kgsl-3d0/max_pwrlevel")
+    affine_irq(5, "fts_ts")    # touch
+    affine_irq(5, "msm_drm")   # display
+    sudo_write("1", "/sys/class/kgsl/kgsl-3d0/min_pwrlevel")
+    sudo_write("1", "/sys/class/kgsl/kgsl-3d0/max_pwrlevel")
     sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_bus_on")
     sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_clk_on")
     sudo_write("1", "/sys/class/kgsl/kgsl-3d0/force_rail_on")
@@ -443,9 +446,6 @@ class Tici(HardwareBase):
 
     # pandad core
     affine_irq(3, "spi_geni")         # SPI
-    if "tici" in self.get_device_type():
-      affine_irq(3, "xhci-hcd:usb3")  # aux panda USB (or potentially anything else on USB)
-      affine_irq(3, "xhci-hcd:usb1")  # internal panda USB (also modem)
     try:
       pid = subprocess.check_output(["pgrep", "-f", "spi0"], encoding='utf8').strip()
       subprocess.call(["sudo", "chrt", "-f", "-p", "1", pid])
@@ -464,22 +464,20 @@ class Tici(HardwareBase):
 
     cmds = []
 
-    if self.get_device_type() in ("tici", "tizi"):
+    if self.get_device_type() in ("tizi", ):
       # clear out old blue prime initial APN
       os.system('mmcli -m any --3gpp-set-initial-eps-bearer-settings="apn="')
 
       cmds += [
+        # SIM hot swap
+        'AT+QSIMDET=1,0',
+        'AT+QSIMSTAT=1',
+
         # configure modem as data-centric
         'AT+QNVW=5280,0,"0102000000000000"',
         'AT+QNVFW="/nv/item_files/ims/IMS_enable",00',
         'AT+QNVFW="/nv/item_files/modem/mmode/ue_usage_setting",01',
       ]
-      if self.get_device_type() == "tizi":
-        # SIM hot swap, not routed on tici
-        cmds += [
-          'AT+QSIMDET=1,0',
-          'AT+QSIMSTAT=1',
-        ]
     elif manufacturer == 'Cavli Inc.':
       cmds += [
         'AT^SIMSWAP=1',     # use SIM slot, instead of internal eSIM
@@ -510,7 +508,7 @@ class Tici(HardwareBase):
 
     # eSIM prime
     dest = "/etc/NetworkManager/system-connections/esim.nmconnection"
-    if sim_id.startswith('8985235') and not os.path.exists(dest):
+    if self.get_sim_lpa().is_comma_profile(sim_id) and not os.path.exists(dest):
       with open(Path(__file__).parent/'esim.nmconnection') as f, tempfile.NamedTemporaryFile(mode='w') as tf:
         dat = f.read()
         dat = dat.replace("sim-id=", f"sim-id={sim_id}")
@@ -520,6 +518,14 @@ class Tici(HardwareBase):
         # needs to be root
         os.system(f"sudo cp {tf.name} {dest}")
       os.system(f"sudo nmcli con load {dest}")
+
+  def reboot_modem(self):
+    modem = self.get_modem()
+    for state in (0, 1):
+      try:
+        modem.Command(f'AT+CFUN={state}', math.ceil(TIMEOUT), dbus_interface=MM_MODEM, timeout=TIMEOUT)
+      except Exception:
+        pass
 
   def get_networks(self):
     r = {}
