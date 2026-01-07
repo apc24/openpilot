@@ -105,7 +105,7 @@ sounddevice = "*"
 spidev = { version = "*", platform = "linux" }
 sympy = "*"
 websocket_client = "*"
-opencv-python-headless = "4.8.1.78"
+opencv-python = "4.8.1.78"
 
 # these should be removed
 markdown-it-py = "*"
