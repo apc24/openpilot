@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import numpy as np
 import os
 import re
@@ -7,7 +8,8 @@ import subprocess
 import time
 from collections import defaultdict
 from pathlib import Path
-import pytest
+from typing import Dict, List
+from flaky import flaky
 
 import cereal.messaging as messaging
 from cereal import log
@@ -18,12 +20,12 @@ from openpilot.common.timeout import Timeout
 from openpilot.system.hardware.hw import Paths
 from openpilot.system.loggerd.xattr_cache import getxattr
 from openpilot.system.loggerd.deleter import PRESERVE_ATTR_NAME, PRESERVE_ATTR_VALUE
-from openpilot.system.manager.process_config import managed_processes
+from openpilot.selfdrive.manager.process_config import managed_processes
 from openpilot.system.version import get_version
 from openpilot.tools.lib.helpers import RE
 from openpilot.tools.lib.logreader import LogReader
-from msgq.visionipc import VisionIpcServer, VisionStreamType
-from openpilot.common.transformations.camera import DEVICE_CAMERAS
+from cereal.visionipc import VisionIpcServer, VisionStreamType
+from openpilot.common.transformations.camera import tici_f_frame_size, tici_d_frame_size, tici_e_frame_size
 
 SentinelType = log.Sentinel.SentinelType
 
@@ -74,7 +76,7 @@ class TestLoggerd:
     end_type = SentinelType.endOfRoute if route else SentinelType.endOfSegment
     assert msgs[-1].sentinel.type == end_type
 
-  def _publish_random_messages(self, services: list[str]) -> dict[str, list]:
+  def _publish_random_messages(self, services: List[str]) -> Dict[str, list]:
     pm = messaging.PubMaster(services)
 
     managed_processes["loggerd"].start()
@@ -96,50 +98,6 @@ class TestLoggerd:
     managed_processes["loggerd"].stop()
 
     return sent_msgs
-
-  def _publish_camera_and_audio_messages(self, num_segs=1, segment_length=5):
-    d = DEVICE_CAMERAS[("tici", "ar0231")]
-    streams = [
-      (VisionStreamType.VISION_STREAM_ROAD, (d.fcam.width, d.fcam.height, 2048 * 2346, 2048, 2048 * 1216), "roadCameraState"),
-      (VisionStreamType.VISION_STREAM_DRIVER, (d.dcam.width, d.dcam.height, 2048 * 2346, 2048, 2048 * 1216), "driverCameraState"),
-      (VisionStreamType.VISION_STREAM_WIDE_ROAD, (d.ecam.width, d.ecam.height, 2048 * 2346, 2048, 2048 * 1216), "wideRoadCameraState"),
-    ]
-
-    pm = messaging.PubMaster([s for _, _, s in streams] + ["rawAudioData"])
-    vipc_server = VisionIpcServer("camerad")
-    for stream_type, frame_spec, _ in streams:
-      vipc_server.create_buffers_with_sizes(stream_type, 40, *(frame_spec))
-    vipc_server.start_listener()
-
-    os.environ["LOGGERD_TEST"] = "1"
-    os.environ["LOGGERD_SEGMENT_LENGTH"] = str(segment_length)
-    managed_processes["loggerd"].start()
-    managed_processes["encoderd"].start()
-    assert pm.wait_for_readers_to_update("roadCameraState", timeout=5)
-
-    fps = 20
-    for n in range(1, int(num_segs * segment_length * fps) + 1):
-      # send video
-      for stream_type, frame_spec, state in streams:
-        dat = np.empty(frame_spec[2], dtype=np.uint8)
-        vipc_server.send(stream_type, dat[:].flatten().tobytes(), n, n / fps, n / fps)
-
-        camera_state = messaging.new_message(state)
-        frame = getattr(camera_state, state)
-        frame.frameId = n
-        pm.send(state, camera_state)
-
-      # send audio
-      msg = messaging.new_message('rawAudioData')
-      msg.rawAudioData.data = bytes(800 * 2) # 800 samples of int16
-      msg.rawAudioData.sampleRate = 16000
-      pm.send('rawAudioData', msg)
-
-      for _, _, state in streams:
-        assert pm.wait_for_readers_to_update(state, timeout=5, dt=0.001)
-
-    managed_processes["loggerd"].stop()
-    managed_processes["encoderd"].stop()
 
   def test_init_data_values(self):
     os.environ["CLEAN"] = random.choice(["0", "1"])
@@ -180,23 +138,52 @@ class TestLoggerd:
       assert getattr(initData, initData_key) == v
       assert logged_params[param_key].decode() == v
 
-  @pytest.mark.xdist_group("camera_encoder_tests")  # setting xdist group ensures tests are run in same worker, prevents encoderd from crashing
+  @flaky(max_runs=3)
   def test_rotation(self):
-    Params().put("RecordFront", True)
+    os.environ["LOGGERD_TEST"] = "1"
+    Params().put("RecordFront", "1")
 
-    expected_files = {"rlog.zst", "qlog.zst", "qcamera.ts", "fcamera.hevc", "dcamera.hevc", "ecamera.hevc"}
+    expected_files = {"rlog", "qlog", "qcamera.ts", "fcamera.hevc", "dcamera.hevc", "ecamera.hevc"}
+    streams = [(VisionStreamType.VISION_STREAM_ROAD, (*tici_f_frame_size, 2048*2346, 2048, 2048*1216), "roadCameraState"),
+               (VisionStreamType.VISION_STREAM_DRIVER, (*tici_d_frame_size, 2048*2346, 2048, 2048*1216), "driverCameraState"),
+               (VisionStreamType.VISION_STREAM_WIDE_ROAD, (*tici_e_frame_size, 2048*2346, 2048, 2048*1216), "wideRoadCameraState")]
 
-    num_segs = random.randint(2, 3)
-    length = random.randint(4, 5) # H264 encoder uses 40 lookahead frames and does B-frame reordering, so minimum 3 seconds before qcam output
+    pm = messaging.PubMaster(["roadCameraState", "driverCameraState", "wideRoadCameraState"])
+    vipc_server = VisionIpcServer("camerad")
+    for stream_type, frame_spec, _ in streams:
+      vipc_server.create_buffers_with_sizes(stream_type, 40, False, *(frame_spec))
+    vipc_server.start_listener()
 
-    self._publish_camera_and_audio_messages(num_segs=num_segs, segment_length=length)
+    num_segs = random.randint(2, 5)
+    length = random.randint(1, 3)
+    os.environ["LOGGERD_SEGMENT_LENGTH"] = str(length)
+    managed_processes["loggerd"].start()
+    managed_processes["encoderd"].start()
+    assert pm.wait_for_readers_to_update("roadCameraState", timeout=5)
+
+    fps = 20.0
+    for n in range(1, int(num_segs*length*fps)+1):
+      for stream_type, frame_spec, state in streams:
+        dat = np.empty(frame_spec[2], dtype=np.uint8)
+        vipc_server.send(stream_type, dat[:].flatten().tobytes(), n, n/fps, n/fps)
+
+        camera_state = messaging.new_message(state)
+        frame = getattr(camera_state, state)
+        frame.frameId = n
+        pm.send(state, camera_state)
+
+      for _, _, state in streams:
+        assert pm.wait_for_readers_to_update(state, timeout=5, dt=0.001)
+
+    managed_processes["loggerd"].stop()
+    managed_processes["encoderd"].stop()
 
     route_path = str(self._get_latest_log_dir()).rsplit("--", 1)[0]
     for n in range(num_segs):
       p = Path(f"{route_path}--{n}")
       logged = {f.name for f in p.iterdir() if f.is_file()}
       diff = logged ^ expected_files
-      assert len(diff) == 0, f"didn't get all expected files. seg={n} {route_path=}, {diff=}\n{logged=} {expected_files=}"
+      assert len(diff) == 0, f"didn't get all expected files. run={_} seg={n} {route_path=}, {diff=}\n{logged=} {expected_files=}"
 
   def test_bootlog(self):
     # generate bootlog with fake launch log
@@ -243,7 +230,7 @@ class TestLoggerd:
                random.sample(no_qlog_services, random.randint(2, min(10, len(no_qlog_services))))
     sent_msgs = self._publish_random_messages(services)
 
-    qlog_path = os.path.join(self._get_latest_log_dir(), "qlog.zst")
+    qlog_path = os.path.join(self._get_latest_log_dir(), "qlog")
     lr = list(LogReader(qlog_path))
 
     # check initData and sentinel
@@ -269,7 +256,7 @@ class TestLoggerd:
     services = random.sample(CEREAL_SERVICES, random.randint(5, 10))
     sent_msgs = self._publish_random_messages(services)
 
-    lr = list(LogReader(os.path.join(self._get_latest_log_dir(), "rlog.zst")))
+    lr = list(LogReader(os.path.join(self._get_latest_log_dir(), "rlog")))
 
     # check initData and sentinel
     self._check_init_data(lr)
@@ -282,43 +269,17 @@ class TestLoggerd:
       sent.clear_write_flag()
       assert sent.to_bytes() == m.as_builder().to_bytes()
 
-  def test_preserving_bookmarked_segments(self):
-    services = set(random.sample(CEREAL_SERVICES, random.randint(5, 10))) | {"userBookmark"}
+  def test_preserving_flagged_segments(self):
+    services = set(random.sample(CEREAL_SERVICES, random.randint(5, 10))) | {"userFlag"}
     self._publish_random_messages(services)
 
     segment_dir = self._get_latest_log_dir()
     assert getxattr(segment_dir, PRESERVE_ATTR_NAME) == PRESERVE_ATTR_VALUE
 
-  def test_not_preserving_nonbookmarked_segments(self):
-    services = set(random.sample(CEREAL_SERVICES, random.randint(5, 10))) - {"userBookmark", "audioFeedback"}
+  def test_not_preserving_unflagged_segments(self):
+    services = set(random.sample(CEREAL_SERVICES, random.randint(5, 10))) - {"userFlag"}
     self._publish_random_messages(services)
 
     segment_dir = self._get_latest_log_dir()
     assert getxattr(segment_dir, PRESERVE_ATTR_NAME) is None
 
-  @pytest.mark.xdist_group("camera_encoder_tests")  # setting xdist group ensures tests are run in same worker, prevents encoderd from crashing
-  @pytest.mark.parametrize("record_front", [True, False])
-  def test_record_front(self, record_front):
-    params = Params()
-    params.put_bool("RecordFront", record_front)
-
-    self._publish_camera_and_audio_messages()
-
-    dcamera_hevc_exists = os.path.exists(os.path.join(self._get_latest_log_dir(), 'dcamera.hevc'))
-    assert dcamera_hevc_exists == record_front
-
-  @pytest.mark.xdist_group("camera_encoder_tests")  # setting xdist group ensures tests are run in same worker, prevents encoderd from crashing
-  @pytest.mark.parametrize("record_audio", [True, False])
-  def test_record_audio(self, record_audio):
-    params = Params()
-    params.put_bool("RecordAudio", record_audio)
-
-    self._publish_camera_and_audio_messages()
-
-    qcamera_ts_path = os.path.join(self._get_latest_log_dir(), 'qcamera.ts')
-    ffprobe_cmd = f"ffprobe -i {qcamera_ts_path} -show_streams -select_streams a -loglevel error"
-    has_audio_stream = subprocess.run(ffprobe_cmd, shell=True, capture_output=True).stdout.strip() != b''
-    assert has_audio_stream == record_audio
-
-    raw_audio_in_rlog = any(m.which() == 'rawAudioData' for m in LogReader(os.path.join(self._get_latest_log_dir(), 'rlog.zst')))
-    assert raw_audio_in_rlog == record_audio

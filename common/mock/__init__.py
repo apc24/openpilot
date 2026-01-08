@@ -6,18 +6,19 @@ example in common/tests/test_mock.py
 
 import functools
 import threading
+from typing import List, Union
 from cereal.messaging import PubMaster
 from cereal.services import SERVICE_LIST
-from openpilot.common.mock.generators import generate_livePose
+from openpilot.common.mock.generators import generate_liveLocationKalman
 from openpilot.common.realtime import Ratekeeper
 
 
 MOCK_GENERATOR = {
-  "livePose": generate_livePose
+  "liveLocationKalman": generate_liveLocationKalman
 }
 
 
-def generate_messages_loop(services: list[str], done: threading.Event):
+def generate_messages_loop(services: List[str], done: threading.Event):
   pm = PubMaster(services)
   rk = Ratekeeper(100)
   i = 0
@@ -31,7 +32,7 @@ def generate_messages_loop(services: list[str], done: threading.Event):
     rk.keep_time()
 
 
-def mock_messages(services: list[str] | str):
+def mock_messages(services: Union[List[str], str]):
   if isinstance(services, str):
     services = [services]
 

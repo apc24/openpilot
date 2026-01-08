@@ -1,10 +1,10 @@
 # Camera stream
 
-`compressed_vipc.py` connects to a remote device running openpilot, decodes the video streams, and republishes them over VisionIPC.
+`compressed_vipc.py` connects to a remote device running openpilot, decodes the video streams, and republishes them over VisionIPC. 
 
 ## Usage
 
-### On the device
+### On the device 
 SSH into the device and run following in separate terminals:
 
 `cd /data/openpilot/cereal/messaging && ./bridge`
@@ -30,7 +30,7 @@ Alternatively paste this as a single command:
   wait
 ) ; trap 'kill $(jobs -p)' SIGINT
 ```
-Ctrl+C will stop all three processes.
+Ctrl+C will stop all three processes. 
 
 ### On the PC
 Decode the stream with `compressed_vipc.py`:
@@ -39,11 +39,11 @@ Decode the stream with `compressed_vipc.py`:
 
 To actually display the stream, run `watch3` in separate terminal:
 
-```cd ~/openpilot/selfdrive/ui/ && ./watch3.py```
+```cd ~/openpilot/selfdrive/ui/ && ./watch3```
 
 ## compressed_vipc.py usage
 ```
-$ python3 compressed_vipc.py -h
+$ python compressed_vipc.py -h
 usage: compressed_vipc.py [-h] [--nvidia] [--cams CAMS] [--silent] addr
 
 Decode video streams and broadcast on VisionIPC
@@ -62,5 +62,5 @@ options:
 ## Example:
 ```
 cd ~/openpilot/tools/camerastream && ./compressed_vipc.py comma-ffffffff --cams 0
-cd ~/openpilot/selfdrive/ui/ && ./watch3.py
+cd ~/openpilot/selfdrive/ui/ && ./watch3
 ```

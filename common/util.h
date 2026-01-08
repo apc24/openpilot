@@ -8,6 +8,7 @@
 #include <atomic>
 #include <chrono>
 #include <csignal>
+#include <ctime>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -37,14 +38,16 @@ const double MS_TO_MPH = MS_TO_KPH * KM_TO_MILE;
 const double METER_TO_MILE = KM_TO_MILE / 1000.0;
 const double METER_TO_FOOT = 3.28084;
 
-#define ALIGNED_SIZE(x, align) (((x) + (align)-1) & ~((align)-1))
-
 namespace util {
 
 void set_thread_name(const char* name);
 int set_realtime_priority(int level);
 int set_core_affinity(std::vector<int> cores);
 int set_file_descriptor_limit(uint64_t limit);
+
+// ***** Time helpers *****
+struct tm get_time();
+bool time_valid(struct tm sys_time);
 
 // ***** math helpers *****
 
@@ -72,9 +75,9 @@ int getenv(const char* key, int default_val);
 float getenv(const char* key, float default_val);
 
 std::string hexdump(const uint8_t* in, const size_t size);
+std::string dir_name(std::string const& path);
 bool starts_with(const std::string &s1, const std::string &s2);
-bool ends_with(const std::string &s, const std::string &suffix);
-std::string strip(const std::string &str);
+bool ends_with(const std::string &s1, const std::string &s2);
 
 // ***** random helpers *****
 int random_int(int min, int max);
@@ -88,15 +91,13 @@ int write_file(const char* path, const void* data, size_t size, int flags = O_WR
 FILE* safe_fopen(const char* filename, const char* mode);
 size_t safe_fwrite(const void * ptr, size_t size, size_t count, FILE * stream);
 int safe_fflush(FILE *stream);
-int safe_ioctl(int fd, unsigned long request, void *argp, const char* exception_msg = nullptr);
+int safe_ioctl(int fd, unsigned long request, void *argp);
 
 std::string readlink(const std::string& path);
 bool file_exists(const std::string& fn);
 bool create_directories(const std::string &dir, mode_t mode);
 
 std::string check_output(const std::string& command);
-
-bool system_time_valid();
 
 inline void sleep_for(const int milliseconds) {
   if (milliseconds > 0) {
@@ -178,10 +179,3 @@ void update_max_atomic(std::atomic<T>& max, T const& value) {
   T prev = max;
   while (prev < value && !max.compare_exchange_weak(prev, value)) {}
 }
-
-typedef struct Rect {
-  int x;
-  int y;
-  int w;
-  int h;
-} Rect;

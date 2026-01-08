@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/usr/bin/bash
 
 DEST=tici:/data/openpilot/selfdrive/debug/profiling/perfetto
 

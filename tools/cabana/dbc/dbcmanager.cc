@@ -1,6 +1,5 @@
 #include "tools/cabana/dbc/dbcmanager.h"
 
-#include <QSet>
 #include <algorithm>
 #include <numeric>
 
@@ -125,16 +124,16 @@ cabana::Msg *DBCManager::msg(uint8_t source, const QString &name) {
 
 QStringList DBCManager::signalNames() {
   // Used for autocompletion
-  QSet<QString> names;
+  QStringList ret;
   for (auto &f : allDBCFiles()) {
     for (auto &[_, m] : f->getMessages()) {
       for (auto sig : m.getSignals()) {
-        names.insert(sig->name);
+        ret << sig->name;
       }
     }
   }
-  QStringList ret = names.values();
   ret.sort();
+  ret.removeDuplicates();
   return ret;
 }
 

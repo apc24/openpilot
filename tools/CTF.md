@@ -11,7 +11,7 @@ Welcome to the first part of the comma CTF!
 
 getting started
 ```bash
-# start the route replay
+# start the route reply
 cd tools/replay
 ./replay '0c7f0c7f0c7f0c7f|2021-10-13--13-00-00' --dcam --ecam
 

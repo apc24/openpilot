@@ -5,6 +5,7 @@ import capnp
 import numbers
 import dictdiffer
 from collections import Counter
+from typing import Dict
 
 from openpilot.tools.lib.logreader import LogReader
 
@@ -96,7 +97,7 @@ def format_process_diff(diff):
     diff_short += f"        {diff}\n"
     diff_long += f"\t{diff}\n"
   else:
-    cnt: dict[str, int] = {}
+    cnt: Dict[str, int] = {}
     for d in diff:
       diff_long += f"\t{str(d)}\n"
 
@@ -141,7 +142,7 @@ def format_diff(results, log_paths, ref_commit):
 if __name__ == "__main__":
   log1 = list(LogReader(sys.argv[1]))
   log2 = list(LogReader(sys.argv[2]))
-  ignore_fields = sys.argv[3:] or ["logMonoTime"]
+  ignore_fields = sys.argv[3:] or ["logMonoTime", "controlsState.startMonoTime", "controlsState.cumLagMs"]
   results = {"segment": {"proc": compare_logs(log1, log2, ignore_fields)}}
   log_paths = {"segment": {"proc": {"ref": sys.argv[1], "new": sys.argv[2]}}}
   diff_short, diff_long, failed = format_diff(results, log_paths, None)

@@ -2,10 +2,9 @@
 import sys
 import argparse
 from subprocess import check_output, CalledProcessError
-from opendbc.car.carlog import carlog
-from opendbc.car.uds import UdsClient, SESSION_TYPE, DTC_REPORT_TYPE, DTC_STATUS_MASK_TYPE, get_dtc_num_as_str, get_dtc_status_names
-from opendbc.car.structs import CarParams
 from panda import Panda
+from panda.python.uds import UdsClient, SESSION_TYPE, DTC_REPORT_TYPE, DTC_STATUS_MASK_TYPE
+from panda.python.uds import get_dtc_num_as_str, get_dtc_status_names
 
 parser = argparse.ArgumentParser(description="read DTC status")
 parser.add_argument("addr", type=lambda x: int(x,0))
@@ -13,20 +12,17 @@ parser.add_argument("--bus", type=int, default=0)
 parser.add_argument('--debug', action='store_true')
 args = parser.parse_args()
 
-if args.debug:
-  carlog.setLevel('DEBUG')
-
 try:
-  check_output(["pidof", "pandad"])
-  print("pandad is running, please kill openpilot before running this script! (aborted)")
+  check_output(["pidof", "boardd"])
+  print("boardd is running, please kill openpilot before running this script! (aborted)")
   sys.exit(1)
 except CalledProcessError as e:
-  if e.returncode != 1: # 1 == no process found (pandad not running)
+  if e.returncode != 1: # 1 == no process found (boardd not running)
     raise e
 
 panda = Panda()
-panda.set_safety_mode(CarParams.SafetyModel.elm327)
-uds_client = UdsClient(panda, args.addr, bus=args.bus)
+panda.set_safety_mode(Panda.SAFETY_ELM327)
+uds_client = UdsClient(panda, args.addr, bus=args.bus, debug=args.debug)
 print("extended diagnostic session ...")
 uds_client.diagnostic_session_control(SESSION_TYPE.EXTENDED_DIAGNOSTIC)
 print("read diagnostic codes ...")

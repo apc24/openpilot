@@ -1,23 +1,13 @@
 import os
 import requests
 
-
 # Forks with additional car support can fork the commaCarSegments repo on huggingface or host the LFS files themselves
 COMMA_CAR_SEGMENTS_REPO = os.environ.get("COMMA_CAR_SEGMENTS_REPO", "https://huggingface.co/datasets/commaai/commaCarSegments")
 COMMA_CAR_SEGMENTS_BRANCH = os.environ.get("COMMA_CAR_SEGMENTS_BRANCH", "main")
 COMMA_CAR_SEGMENTS_LFS_INSTANCE = os.environ.get("COMMA_CAR_SEGMENTS_LFS_INSTANCE", COMMA_CAR_SEGMENTS_REPO)
 
 def get_comma_car_segments_database():
-  from opendbc.car.fingerprints import MIGRATION
-
-  database = requests.get(get_repo_raw_url("database.json")).json()
-
-  ret = {}
-  for platform in database:
-    # TODO: remove this when commaCarSegments is updated to remove selector
-    ret[MIGRATION.get(platform, platform)] = [s.rstrip('/s') for s in database[platform]]
-
-  return ret
+  return requests.get(get_repo_raw_url("database.json")).json()
 
 
 # Helpers related to interfacing with the commaCarSegments repository, which contains a collection of public segments for users to perform validation on.
@@ -87,5 +77,5 @@ def get_repo_url(path):
     return get_repo_raw_url(path)
 
 
-def get_url(route, segment, file="rlog.zst"):
+def get_url(route, segment, file="rlog.bz2"):
   return get_repo_url(f"segments/{route.replace('|', '/')}/{segment}/{file}")

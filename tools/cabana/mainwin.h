@@ -20,20 +20,22 @@ class MainWindow : public QMainWindow {
   Q_OBJECT
 
 public:
-  MainWindow(AbstractStream *stream, const QString &dbc_file);
-  void toggleChartsDocking();
+  MainWindow();
+  void dockCharts(bool dock);
   void showStatusMessage(const QString &msg, int timeout = 0) { statusBar()->showMessage(msg, timeout); }
   void loadFile(const QString &fn, SourceSet s = SOURCE_ALL);
   ChartsWidget *charts_widget = nullptr;
 
 public slots:
-  void selectAndOpenStream();
-  void openStream(AbstractStream *stream, const QString &dbc_file = {});
+  void openStream();
   void closeStream();
   void exportToCSV();
+  void changingStream();
+  void streamStarted();
 
   void newFile(SourceSet s = SOURCE_ALL);
   void openFile(SourceSet s = SOURCE_ALL);
+  void openRecentFile();
   void loadDBCFromOpendbc(const QString &name);
   void save();
   void saveAs();
@@ -44,7 +46,6 @@ signals:
   void updateProgressBar(uint64_t cur, uint64_t total, bool success);
 
 protected:
-  bool eventFilter(QObject *obj, QEvent *event) override;
   void remindSaveChanges();
   void closeFile(SourceSet s = SOURCE_ALL);
   void closeFile(DBCFile *dbc_file);
@@ -53,8 +54,10 @@ protected:
   void saveFileToClipboard(DBCFile *dbc_file);
   void loadFingerprints();
   void loadFromClipboard(SourceSet s = SOURCE_ALL, bool close_all = true);
+  void autoSave();
+  void cleanupAutoSaveFile();
   void updateRecentFiles(const QString &fn);
-  void updateRecentFileMenu();
+  void updateRecentFileActions();
   void createActions();
   void createDockWindows();
   void createStatusBar();
@@ -66,6 +69,7 @@ protected:
   void findSimilarBits();
   void findSignal();
   void undoStackCleanChanged(bool clean);
+  void undoStackIndexChanged(int index);
   void onlineHelp();
   void toggleFullScreen();
   void updateStatus();
@@ -83,8 +87,10 @@ protected:
   QProgressBar *progress_bar;
   QLabel *status_label;
   QJsonDocument fingerprint_to_dbc;
+  QStringList opendbc_names;
   QSplitter *video_splitter = nullptr;
   enum { MAX_RECENT_FILES = 15 };
+  QAction *recent_files_acts[MAX_RECENT_FILES] = {};
   QMenu *open_recent_menu = nullptr;
   QMenu *manage_dbcs_menu = nullptr;
   QMenu *tools_menu = nullptr;
@@ -94,6 +100,8 @@ protected:
   QAction *save_dbc_as = nullptr;
   QAction *copy_dbc_to_clipboard = nullptr;
   QString car_fingerprint;
+  int prev_undostack_index = 0;
+  int prev_undostack_count = 0;
   QByteArray default_state;
 };
 

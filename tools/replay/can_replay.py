@@ -8,7 +8,7 @@ import threading
 os.environ['FILEREADER_CACHE'] = '1'
 
 from openpilot.common.realtime import config_realtime_process, Ratekeeper, DT_CTRL
-from openpilot.selfdrive.pandad import can_capnp_to_list
+from openpilot.selfdrive.boardd.boardd import can_capnp_to_can_list
 from openpilot.tools.lib.logreader import LogReader
 from panda import PandaJungle
 
@@ -21,39 +21,41 @@ ENABLE_IGN = IGN_ON > 0 and IGN_OFF > 0
 ENABLE_PWR = PWR_ON > 0 and PWR_OFF > 0
 
 
-def send_thread(j: PandaJungle, flock):
+def send_thread(s, flock):
   if "FLASH" in os.environ:
     with flock:
-      j.flash()
+      s.flash()
 
-  j.reset()
   for i in [0, 1, 2, 3, 0xFFFF]:
-    j.can_clear(i)
-    j.set_can_speed_kbps(i, 500)
-  j.set_ignition(True)
-  j.set_panda_power(True)
-  j.set_can_loopback(False)
+    s.can_clear(i)
+    s.set_can_speed_kbps(i, 500)
+    s.set_can_data_speed_kbps(i, 500)
+  s.set_ignition(False)
+  time.sleep(5)
+  s.set_ignition(True)
+  s.set_panda_power(True)
+  s.set_can_loopback(False)
 
   rk = Ratekeeper(1 / DT_CTRL, print_delay_threshold=None)
   while True:
     # handle cycling
     if ENABLE_PWR:
       i = (rk.frame*DT_CTRL) % (PWR_ON + PWR_OFF) < PWR_ON
-      j.set_panda_power(i)
+      s.set_panda_power(i)
     if ENABLE_IGN:
       i = (rk.frame*DT_CTRL) % (IGN_ON + IGN_OFF) < IGN_ON
-      j.set_ignition(i)
+      s.set_ignition(i)
 
-    send = CAN_MSGS[rk.frame % len(CAN_MSGS)]
-    send = list(filter(lambda x: x[-1] <= 2, send))
+    snd = CAN_MSGS[rk.frame % len(CAN_MSGS)]
+    snd = list(filter(lambda x: x[-1] <= 2, snd))
     try:
-      j.can_send_many(send)
+      s.can_send_many(snd)
     except usb1.USBErrorTimeout:
       # timeout is fine, just means the CAN TX buffer is full
       pass
 
     # Drain panda message buffer
-    j.can_recv()
+    s.can_recv()
     rk.keep_time()
 
 
@@ -81,25 +83,24 @@ def connect():
     time.sleep(1)
 
 
-def load_route(route_or_segment_name):
-  print("Loading log...")
-  lr = LogReader(route_or_segment_name)
-  CP = lr.first("carParams")
-  print(f"carFingerprint: '{CP.carFingerprint}'")
-  mbytes = [m.as_builder().to_bytes() for m in lr if m.which() == 'can']
-  return [m[1] for m in can_capnp_to_list(mbytes)]
-
-
 if __name__ == "__main__":
   parser = argparse.ArgumentParser(description="Replay CAN messages from a route to all connected pandas and jungles in a loop.",
                                    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
   parser.add_argument("route_or_segment_name", nargs='?', help="The route or segment name to replay. If not specified, a default public route will be used.")
   args = parser.parse_args()
 
-  if args.route_or_segment_name is None:
-    args.route_or_segment_name = "77611a1fac303767/2020-03-24--09-50-38/2:4"
+  def process(lr):
+    return [can_capnp_to_can_list(m.can) for m in lr if m.which() == 'can']
 
-  CAN_MSGS = load_route(args.route_or_segment_name)
+  print("Loading log...")
+  if args.route_or_segment_name is None:
+    args.route_or_segment_name = "77611a1fac303767/2020-03-24--09-50-38/1:3"
+
+  sr = LogReader(args.route_or_segment_name)
+
+  CAN_MSGS = sr.run_across_segments(24, process)
+
+  print("Finished loading...")
 
   if ENABLE_PWR:
     print(f"Cycling power: on for {PWR_ON}s, off for {PWR_OFF}s")

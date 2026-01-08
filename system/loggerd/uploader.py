@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import bz2
+import io
 import json
 import os
 import random
@@ -7,12 +9,11 @@ import threading
 import time
 import traceback
 import datetime
-from collections.abc import Iterator
+from typing import BinaryIO, Iterator, List, Optional, Tuple
 
 from cereal import log
 import cereal.messaging as messaging
 from openpilot.common.api import Api
-from openpilot.common.utils import get_upload_stream
 from openpilot.common.params import Params
 from openpilot.common.realtime import set_core_affinity
 from openpilot.system.hardware.hw import Paths
@@ -23,13 +24,9 @@ NetworkType = log.DeviceState.NetworkType
 UPLOAD_ATTR_NAME = 'user.upload'
 UPLOAD_ATTR_VALUE = b'1'
 
-MAX_UPLOAD_SIZES = {
-  "qlog": 25*1e6,  # can't be too restrictive here since we use qlogs to find
-                   # bugs, including ones that can cause massive log sizes
-  "qcam": 5*1e6,
-}
+UPLOAD_QLOG_QCAM_MAX_SIZE = 5 * 1e6  # MB
 
-allow_sleep = bool(int(os.getenv("UPLOADER_SLEEP", "1")))
+allow_sleep = bool(os.getenv("UPLOADER_SLEEP", "1"))
 force_wifi = os.getenv("FORCEWIFI") is not None
 fake_upload = os.getenv("FAKEUPLOAD") is not None
 
@@ -45,12 +42,10 @@ class FakeResponse:
     self.request = FakeRequest()
 
 
-def get_directory_sort(d: str) -> list[str]:
-  # ensure old format is sorted sooner
-  o = ["0", ] if d.startswith("2024-") else ["1", ]
-  return o + [s.rjust(10, '0') for s in d.rsplit('--', 1)]
+def get_directory_sort(d: str) -> List[str]:
+  return [s.rjust(10, '0') for s in d.rsplit('--', 1)]
 
-def listdir_by_creation(d: str) -> list[str]:
+def listdir_by_creation(d: str) -> List[str]:
   if not os.path.isdir(d):
     return []
 
@@ -85,11 +80,11 @@ class Uploader:
     self.last_filename = ""
 
     self.immediate_folders = ["crash/", "boot/"]
-    self.immediate_priority = {"qlog": 0, "qlog.zst": 0, "qcamera.ts": 1}
+    self.immediate_priority = {"qlog": 0, "qlog.bz2": 0, "qcamera.ts": 1}
 
-  def list_upload_files(self, metered: bool) -> Iterator[tuple[str, str, str]]:
-    r = self.params.get("AthenadRecentlyViewedRoutes")
-    requested_routes = [] if r is None else [route for route in r.split(",") if route]
+  def list_upload_files(self, metered: bool) -> Iterator[Tuple[str, str, str]]:
+    r = self.params.get("AthenadRecentlyViewedRoutes", encoding="utf8")
+    requested_routes = [] if r is None else r.split(",")
 
     for logdir in listdir_by_creation(self.root):
       path = os.path.join(self.root, logdir)
@@ -126,7 +121,7 @@ class Uploader:
 
         yield name, key, fn
 
-  def next_file_to_upload(self, metered: bool) -> tuple[str, str, str] | None:
+  def next_file_to_upload(self, metered: bool) -> Optional[Tuple[str, str, str]]:
     upload_files = list(self.list_upload_files(metered))
 
     for name, key, fn in upload_files:
@@ -152,15 +147,15 @@ class Uploader:
     if fake_upload:
       return FakeResponse()
 
-    stream = None
-    try:
-      compress = key.endswith('.zst') and not fn.endswith('.zst')
-      stream, _ = get_upload_stream(fn, compress)
-      response = requests.put(url, data=stream, headers=headers, timeout=10)
-      return response
-    finally:
-      if stream:
-        stream.close()
+    with open(fn, "rb") as f:
+      data: BinaryIO
+      if key.endswith('.bz2') and not fn.endswith('.bz2'):
+        compressed = bz2.compress(f.read())
+        data = io.BytesIO(compressed)
+      else:
+        data = f
+
+      return requests.put(url, data=data, headers=headers, timeout=10)
 
   def upload(self, name: str, key: str, fn: str, network_type: int, metered: bool) -> bool:
     try:
@@ -174,7 +169,7 @@ class Uploader:
     if sz == 0:
       # tag files of 0 size as uploaded
       success = True
-    elif name in MAX_UPLOAD_SIZES and sz > MAX_UPLOAD_SIZES[name]:
+    elif name in self.immediate_priority and sz > UPLOAD_QLOG_QCAM_MAX_SIZE:
       cloudlog.event("uploader_too_large", key=key, fn=fn, sz=sz)
       success = True
     else:
@@ -212,7 +207,7 @@ class Uploader:
     return success
 
 
-  def step(self, network_type: int, metered: bool) -> bool | None:
+  def step(self, network_type: int, metered: bool) -> Optional[bool]:
     d = self.next_file_to_upload(metered)
     if d is None:
       return None
@@ -220,13 +215,13 @@ class Uploader:
     name, key, fn = d
 
     # qlogs and bootlogs need to be compressed before uploading
-    if key.endswith(('qlog', 'rlog')) or (key.startswith('boot/') and not key.endswith('.zst')):
-      key += ".zst"
+    if key.endswith(('qlog', 'rlog')) or (key.startswith('boot/') and not key.endswith('.bz2')):
+      key += ".bz2"
 
     return self.upload(name, key, fn, network_type, metered)
 
 
-def main(exit_event: threading.Event = None) -> None:
+def main(exit_event: Optional[threading.Event] = None) -> None:
   if exit_event is None:
     exit_event = threading.Event()
 
@@ -238,7 +233,7 @@ def main(exit_event: threading.Event = None) -> None:
   clear_locks(Paths.log_root())
 
   params = Params()
-  dongle_id = params.get("DongleId")
+  dongle_id = params.get("DongleId", encoding='utf8')
 
   if dongle_id is None:
     cloudlog.info("uploader missing dongle_id")

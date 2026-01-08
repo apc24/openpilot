@@ -3,7 +3,7 @@ import os
 import pyopencl as cl
 import pyopencl.array as cl_array
 
-from msgq.visionipc import VisionIpcServer, VisionStreamType
+from cereal.visionipc import VisionIpcServer, VisionStreamType
 from cereal import messaging
 
 from openpilot.common.basedir import BASEDIR
@@ -18,9 +18,9 @@ class Camerad:
     self.frame_wide_id = 0
     self.vipc_server = VisionIpcServer("camerad")
 
-    self.vipc_server.create_buffers(VisionStreamType.VISION_STREAM_ROAD, 5, W, H)
+    self.vipc_server.create_buffers(VisionStreamType.VISION_STREAM_ROAD, 5, False, W, H)
     if dual_camera:
-      self.vipc_server.create_buffers(VisionStreamType.VISION_STREAM_WIDE_ROAD, 5, W, H)
+      self.vipc_server.create_buffers(VisionStreamType.VISION_STREAM_WIDE_ROAD, 5, False, W, H)
 
     self.vipc_server.start_listener()
 

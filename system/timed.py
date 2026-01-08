@@ -1,19 +1,40 @@
 #!/usr/bin/env python3
 import datetime
+import os
 import subprocess
 import time
 from typing import NoReturn
 
+from timezonefinder import TimezoneFinder
+
 import cereal.messaging as messaging
-from openpilot.common.time_helpers import min_date, system_time_valid
-from openpilot.common.swaglog import cloudlog
 from openpilot.common.params import Params
-from openpilot.common.gps import get_gps_location_service
+from openpilot.common.swaglog import cloudlog
+from openpilot.system.hardware import AGNOS
+
+
+def set_timezone(timezone):
+  valid_timezones = subprocess.check_output('timedatectl list-timezones', shell=True, encoding='utf8').strip().split('\n')
+  if timezone not in valid_timezones:
+    cloudlog.error(f"Timezone not supported {timezone}")
+    return
+
+  cloudlog.debug(f"Setting timezone to {timezone}")
+  try:
+    if AGNOS:
+      tzpath = os.path.join("/usr/share/zoneinfo/", timezone)
+      subprocess.check_call(f'sudo su -c "ln -snf {tzpath} /data/etc/tmptime && \
+                              mv /data/etc/tmptime /data/etc/localtime"', shell=True)
+      subprocess.check_call(f'sudo su -c "echo \"{timezone}\" > /data/etc/timezone"', shell=True)
+    else:
+      subprocess.check_call(f'sudo timedatectl set-timezone {timezone}', shell=True)
+  except subprocess.CalledProcessError:
+    cloudlog.exception(f"Error setting timezone to {timezone}")
 
 
 def set_time(new_time):
   diff = datetime.datetime.now() - new_time
-  if abs(diff) < datetime.timedelta(seconds=10):
+  if diff < datetime.timedelta(seconds=10):
     cloudlog.debug(f"Time diff too small: {diff}")
     return
 
@@ -27,35 +48,51 @@ def set_time(new_time):
 def main() -> NoReturn:
   """
     timed has two responsibilities:
-    - getting the current time from GPS
-    - publishing the time in the logs
+    - getting the current time
+    - getting the current timezone
 
+    GPS directly gives time, and timezone is looked up from GPS position.
     AGNOS will also use NTP to update the time.
   """
 
   params = Params()
-  gps_location_service = get_gps_location_service(params)
+  tf = TimezoneFinder()
+
+  # Restore timezone from param
+  tz = params.get("Timezone", encoding='utf8')
+  tf = TimezoneFinder()
+  if tz is not None:
+    cloudlog.debug("Restoring timezone from param")
+    set_timezone(tz)
 
   pm = messaging.PubMaster(['clocks'])
-  sm = messaging.SubMaster([gps_location_service])
+  sm = messaging.SubMaster(['liveLocationKalman'])
   while True:
     sm.update(1000)
 
-    msg = messaging.new_message('clocks')
-    msg.valid = system_time_valid()
+    msg = messaging.new_message('clocks', valid=True)
     msg.clocks.wallTimeNanos = time.time_ns()
     pm.send('clocks', msg)
 
-    gps = sm[gps_location_service]
-    gps_time = datetime.datetime.fromtimestamp(gps.unixTimestampMillis / 1000.)
-    if not sm.updated[gps_location_service] or (time.monotonic() - sm.logMonoTime[gps_location_service] / 1e9) > 2.0:
-      continue
-    if not gps.hasFix:
-      continue
-    if gps_time < min_date():
+    llk = sm['liveLocationKalman']
+    if not llk.gpsOK or (time.monotonic() - sm.logMonoTime['liveLocationKalman']/1e9) > 0.2:
       continue
 
+    # set time
+    # TODO: account for unixTimesatmpMillis being a (usually short) time in the past
+    gps_time = datetime.datetime.fromtimestamp(llk.unixTimestampMillis / 1000.)
     set_time(gps_time)
+
+    # set timezone
+    pos = llk.positionGeodetic.value
+    if len(pos) == 3:
+      gps_timezone = tf.timezone_at(lat=pos[0], lng=pos[1])
+      if gps_timezone is None:
+        cloudlog.critical(f"No timezone found based on {pos=}")
+      else:
+        set_timezone(gps_timezone)
+        params.put_nonblocking("Timezone", gps_timezone)
+
     time.sleep(10)
 
 if __name__ == "__main__":

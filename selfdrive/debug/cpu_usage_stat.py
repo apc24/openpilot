@@ -9,10 +9,10 @@ System tools like top/htop can only show current cpu usage values, so I write th
     Calculate minumium/maximum/accumulated_average cpu usage as long term inspections.
     Monitor multiple processes simuteneously.
   Sample usage:
-    root@localhost:/data/openpilot$ python selfdrive/debug/cpu_usage_stat.py pandad,ubloxd
-    ('Add monitored proc:', './pandad')
+    root@localhost:/data/openpilot$ python selfdrive/debug/cpu_usage_stat.py boardd,ubloxd
+    ('Add monitored proc:', './boardd')
     ('Add monitored proc:', 'python locationd/ubloxd.py')
-    pandad: 1.96%, min: 1.96%, max: 1.96%, acc: 1.96%
+    boardd: 1.96%, min: 1.96%, max: 1.96%, acc: 1.96%
     ubloxd.py: 0.39%, min: 0.39%, max: 0.39%, acc: 0.39%
 '''
 import psutil
@@ -24,7 +24,7 @@ import argparse
 import re
 from collections import defaultdict
 
-from openpilot.system.manager.process_config import managed_processes
+from openpilot.selfdrive.manager.process_config import managed_processes
 
 # Do statistics every 5 seconds
 PRINT_INTERVAL = 5
@@ -36,6 +36,8 @@ monitored_proc_names = [
 ] + list(managed_processes.keys())
 
 cpu_time_names = ['user', 'system', 'children_user', 'children_system']
+
+timer = getattr(time, 'monotonic', time.time)
 
 
 def get_arg_parser():
@@ -64,13 +66,13 @@ if __name__ == "__main__":
   for p in psutil.process_iter():
     if p == psutil.Process():
       continue
-    matched = any(l for l in p.cmdline() if any(pn for pn in monitored_proc_names if re.match(fr'.*{pn}.*', l, re.M | re.I)))
+    matched = any(l for l in p.cmdline() if any(pn for pn in monitored_proc_names if re.match(r'.*{}.*'.format(pn), l, re.M | re.I)))
     if matched:
       k = ' '.join(p.cmdline())
       print('Add monitored proc:', k)
       stats[k] = {'cpu_samples': defaultdict(list), 'min': defaultdict(lambda: None), 'max': defaultdict(lambda: None),
-                  'avg': defaultdict(float), 'last_cpu_times': None, 'last_sys_time': None}
-      stats[k]['last_sys_time'] = time.monotonic()
+                  'avg': defaultdict(lambda: 0.0), 'last_cpu_times': None, 'last_sys_time': None}
+      stats[k]['last_sys_time'] = timer()
       stats[k]['last_cpu_times'] = p.cpu_times()
       monitored_procs.append(p)
   i = 0
@@ -78,7 +80,7 @@ if __name__ == "__main__":
   while True:
     for p in monitored_procs:
       k = ' '.join(p.cmdline())
-      cur_sys_time = time.monotonic()
+      cur_sys_time = timer()
       cur_cpu_times = p.cpu_times()
       cpu_times = np.subtract(cur_cpu_times, stats[k]['last_cpu_times']) / (cur_sys_time - stats[k]['last_sys_time'])
       stats[k]['last_sys_time'] = cur_sys_time

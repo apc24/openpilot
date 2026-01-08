@@ -1,27 +1,30 @@
+#!/usr/bin/env python3
 from collections import defaultdict, deque
+import sys
 import pytest
+import unittest
 import time
 import numpy as np
 from dataclasses import dataclass
 from tabulate import tabulate
+from typing import List
 
 import cereal.messaging as messaging
 from cereal.services import SERVICE_LIST
-from opendbc.car.car_helpers import get_demo_car_params
 from openpilot.common.mock import mock_messages
-from openpilot.common.params import Params
+from openpilot.selfdrive.car.car_helpers import write_car_param
 from openpilot.system.hardware.tici.power_monitor import get_power
-from openpilot.system.manager.process_config import managed_processes
-from openpilot.system.manager.manager import manager_cleanup
+from openpilot.selfdrive.manager.process_config import managed_processes
+from openpilot.selfdrive.manager.manager import manager_cleanup
 
 SAMPLE_TIME = 8       # seconds to sample power
 MAX_WARMUP_TIME = 30  # seconds to wait for SAMPLE_TIME consecutive valid samples
 
 @dataclass
 class Proc:
-  procs: list[str]
+  procs: List[str]
   power: float
-  msgs: list[str]
+  msgs: List[str]
   rtol: float = 0.05
   atol: float = 0.12
 
@@ -31,23 +34,24 @@ class Proc:
 
 
 PROCS = [
-  Proc(['camerad'], 1.65, atol=0.4, msgs=['roadCameraState', 'wideRoadCameraState', 'driverCameraState']),
-  Proc(['modeld'], 1.24, atol=0.2, msgs=['modelV2']),
-  Proc(['dmonitoringmodeld'], 0.65, atol=0.35, msgs=['driverStateV2']),
+  Proc(['camerad'], 2.1, msgs=['roadCameraState', 'wideRoadCameraState', 'driverCameraState']),
+  Proc(['modeld'], 1.12, atol=0.2, msgs=['modelV2']),
+  Proc(['dmonitoringmodeld'], 0.4, msgs=['driverStateV2']),
   Proc(['encoderd'], 0.23, msgs=[]),
+  Proc(['mapsd', 'navmodeld'], 0.05, msgs=['mapRenderState', 'navModel']),
 ]
 
 
 @pytest.mark.tici
-class TestPowerDraw:
+class TestPowerDraw(unittest.TestCase):
 
-  def setup_method(self):
-    Params().put("CarParams", get_demo_car_params().to_bytes())
+  def setUp(self):
+    write_car_param()
 
     # wait a bit for power save to disable
     time.sleep(5)
 
-  def teardown_method(self):
+  def tearDown(self):
     manager_cleanup()
 
   def get_expected_messages(self, proc):
@@ -56,13 +60,13 @@ class TestPowerDraw:
   def valid_msg_count(self, proc, msg_counts):
     msgs_received = sum(msg_counts[msg] for msg in proc.msgs)
     msgs_expected = self.get_expected_messages(proc)
-    return np.isclose(msgs_expected, msgs_received, rtol=.02, atol=2)
+    return np.core.numeric.isclose(msgs_expected, msgs_received, rtol=.02, atol=2)
 
   def valid_power_draw(self, proc, used):
-    return np.isclose(used, proc.power, rtol=proc.rtol, atol=proc.atol)
+    return np.core.numeric.isclose(used, proc.power, rtol=proc.rtol, atol=proc.atol)
 
   def tabulate_msg_counts(self, msgs_and_power):
-    msg_counts = defaultdict(int)
+    msg_counts = defaultdict(lambda: 0)
     for _, counts in msgs_and_power:
       for msg, count in counts.items():
         msg_counts[msg] += count
@@ -95,8 +99,8 @@ class TestPowerDraw:
 
     return now, msg_counts, time.monotonic() - start_time - SAMPLE_TIME
 
-  @mock_messages(['livePose'])
-  def test_camera_procs(self, subtests):
+  @mock_messages(['liveLocationKalman'])
+  def test_camera_procs(self):
     baseline = get_power()
 
     prev = baseline
@@ -121,8 +125,12 @@ class TestPowerDraw:
       expected = proc.power
       msgs_received = sum(msg_counts[msg] for msg in proc.msgs)
       tab.append([proc.name, round(expected, 2), round(cur, 2), self.get_expected_messages(proc), msgs_received, round(warmup_time[proc.name], 2)])
-      with subtests.test(proc=proc.name):
-        assert self.valid_msg_count(proc, msg_counts), f"expected {self.get_expected_messages(proc)} msgs, got {msgs_received} msgs"
-        assert self.valid_power_draw(proc, cur), f"expected {expected:.2f}W, got {cur:.2f}W"
+      with self.subTest(proc=proc.name):
+        self.assertTrue(self.valid_msg_count(proc, msg_counts), f"expected {self.get_expected_messages(proc)} msgs, got {msgs_received} msgs")
+        self.assertTrue(self.valid_power_draw(proc, cur), f"expected {expected:.2f}W, got {cur:.2f}W")
     print(tabulate(tab))
     print(f"Baseline {baseline:.2f}W\n")
+
+
+if __name__ == "__main__":
+  pytest.main(sys.argv)

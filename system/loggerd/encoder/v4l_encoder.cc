@@ -16,13 +16,16 @@
 #define V4L2_QCOM_BUF_FLAG_CODECCONFIG 0x00020000
 #define V4L2_QCOM_BUF_FLAG_EOS 0x02000000
 
-/*
-  kernel debugging:
-  echo 0xff > /sys/module/videobuf2_core/parameters/debug
-  echo 0x7fffffff > /sys/kernel/debug/msm_vidc/debug_level
-  echo 0xff > /sys/devices/platform/soc/aa00000.qcom,vidc/video4linux/video33/dev_debug
-*/
+// echo 0x7fffffff > /sys/kernel/debug/msm_vidc/debug_level
 const int env_debug_encoder = (getenv("DEBUG_ENCODER") != NULL) ? atoi(getenv("DEBUG_ENCODER")) : 0;
+
+static void checked_ioctl(int fd, unsigned long request, void *argp) {
+  int ret = util::safe_ioctl(fd, request, argp);
+  if (ret != 0) {
+    LOGE("checked_ioctl failed with error %d (%d %lx %p)", errno, fd, request, argp);
+    assert(0);
+  }
+}
 
 static void dequeue_buffer(int fd, v4l2_buf_type buf_type, unsigned int *index=NULL, unsigned int *bytesused=NULL, unsigned int *flags=NULL, struct timeval *timestamp=NULL) {
   v4l2_plane plane = {0};
@@ -32,7 +35,7 @@ static void dequeue_buffer(int fd, v4l2_buf_type buf_type, unsigned int *index=N
     .m = { .planes = &plane, },
     .length = 1,
   };
-  util::safe_ioctl(fd, VIDIOC_DQBUF, &v4l_buf, "VIDIOC_DQBUF failed");
+  checked_ioctl(fd, VIDIOC_DQBUF, &v4l_buf);
 
   if (index) *index = v4l_buf.index;
   if (bytesused) *bytesused = v4l_buf.m.planes[0].bytesused;
@@ -58,7 +61,8 @@ static void queue_buffer(int fd, v4l2_buf_type buf_type, unsigned int index, Vis
     .flags = V4L2_BUF_FLAG_TIMESTAMP_COPY,
     .timestamp = timestamp
   };
-  util::safe_ioctl(fd, VIDIOC_QBUF, &v4l_buf, "VIDIOC_QBUF failed");
+
+  checked_ioctl(fd, VIDIOC_QBUF, &v4l_buf);
 }
 
 static void request_buffers(int fd, v4l2_buf_type buf_type, unsigned int count) {
@@ -67,7 +71,7 @@ static void request_buffers(int fd, v4l2_buf_type buf_type, unsigned int count) 
     .memory = V4L2_MEMORY_USERPTR,
     .count = count
   };
-  util::safe_ioctl(fd, VIDIOC_REQBUFS, &reqbuf, "VIDIOC_REQBUFS failed");
+  checked_ioctl(fd, VIDIOC_REQBUFS, &reqbuf);
 }
 
 void V4LEncoder::dequeue_handler(V4LEncoder *e) {
@@ -124,7 +128,7 @@ void V4LEncoder::dequeue_handler(V4LEncoder *e) {
         assert(extra.timestamp_eof/1000 == ts); // stay in sync
         frame_id = extra.frame_id;
         ++idx;
-        e->publisher_publish(e->segment_num, idx, extra, flags, header, kj::arrayPtr<capnp::byte>(buf, bytesused));
+        e->publisher_publish(e, e->segment_num, idx, extra, flags, header, kj::arrayPtr<capnp::byte>(buf, bytesused));
       }
 
       if (env_debug_encoder) {
@@ -146,17 +150,14 @@ void V4LEncoder::dequeue_handler(V4LEncoder *e) {
 
 V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_height)
     : VideoEncoder(encoder_info, in_width, in_height) {
-  fd = HANDLE_EINTR(open("/dev/v4l/by-path/platform-aa00000.qcom_vidc-video-index1", O_RDWR|O_NONBLOCK));
+  fd = open("/dev/v4l/by-path/platform-aa00000.qcom_vidc-video-index1", O_RDWR|O_NONBLOCK);
   assert(fd >= 0);
 
   struct v4l2_capability cap;
-  util::safe_ioctl(fd, VIDIOC_QUERYCAP, &cap, "VIDIOC_QUERYCAP failed");
+  checked_ioctl(fd, VIDIOC_QUERYCAP, &cap);
   LOGD("opened encoder device %s %s = %d", cap.driver, cap.card, fd);
   assert(strcmp((const char *)cap.driver, "msm_vidc_driver") == 0);
   assert(strcmp((const char *)cap.card, "msm_vidc_venc") == 0);
-
-  EncoderSettings encoder_settings = encoder_info.get_settings(in_width);
-  bool is_h265 = encoder_settings.encode_type == cereal::EncodeIndex::Type::FULL_H_E_V_C;
 
   struct v4l2_format fmt_out = {
     .type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE,
@@ -165,13 +166,13 @@ V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_hei
         // downscales are free with v4l
         .width = (unsigned int)(out_width),
         .height = (unsigned int)(out_height),
-        .pixelformat = is_h265 ? V4L2_PIX_FMT_HEVC : V4L2_PIX_FMT_H264,
+        .pixelformat = (encoder_info.encode_type == cereal::EncodeIndex::Type::FULL_H_E_V_C) ? V4L2_PIX_FMT_HEVC : V4L2_PIX_FMT_H264,
         .field = V4L2_FIELD_ANY,
         .colorspace = V4L2_COLORSPACE_DEFAULT,
       }
     }
   };
-  util::safe_ioctl(fd, VIDIOC_S_FMT, &fmt_out, "VIDIOC_S_FMT failed");
+  checked_ioctl(fd, VIDIOC_S_FMT, &fmt_out);
 
   v4l2_streamparm streamparm = {
     .type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
@@ -180,12 +181,12 @@ V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_hei
         // TODO: more stuff here? we don't know
         .timeperframe = {
           .numerator = 1,
-          .denominator = (unsigned int)encoder_info.fps
+          .denominator = 20
         }
       }
     }
   };
-  util::safe_ioctl(fd, VIDIOC_S_PARM, &streamparm, "VIDIOC_S_PARM failed");
+  checked_ioctl(fd, VIDIOC_S_PARM, &streamparm);
 
   struct v4l2_format fmt_in = {
     .type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE,
@@ -199,7 +200,7 @@ V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_hei
       }
     }
   };
-  util::safe_ioctl(fd, VIDIOC_S_FMT, &fmt_in, "VIDIOC_S_FMT failed");
+  checked_ioctl(fd, VIDIOC_S_FMT, &fmt_in);
 
   LOGD("in buffer size %d, out buffer size %d",
     fmt_in.fmt.pix_mp.plane_fmt[0].sizeimage,
@@ -208,32 +209,34 @@ V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_hei
   // shared ctrls
   {
     struct v4l2_control ctrls[] = {
-      { .id = V4L2_CID_MPEG_VIDEO_BITRATE, .value = encoder_settings.bitrate},
-      { .id = V4L2_CID_MPEG_VIDC_VIDEO_NUM_P_FRAMES, .value = encoder_settings.gop_size - encoder_settings.b_frames - 1},
-      { .id = V4L2_CID_MPEG_VIDC_VIDEO_NUM_B_FRAMES, .value = encoder_settings.b_frames},
       { .id = V4L2_CID_MPEG_VIDEO_HEADER_MODE, .value = V4L2_MPEG_VIDEO_HEADER_MODE_SEPARATE},
+      { .id = V4L2_CID_MPEG_VIDEO_BITRATE, .value = encoder_info.bitrate},
       { .id = V4L2_CID_MPEG_VIDC_VIDEO_RATE_CONTROL, .value = V4L2_CID_MPEG_VIDC_VIDEO_RATE_CONTROL_VBR_CFR},
       { .id = V4L2_CID_MPEG_VIDC_VIDEO_PRIORITY, .value = V4L2_MPEG_VIDC_VIDEO_PRIORITY_REALTIME_DISABLE},
       { .id = V4L2_CID_MPEG_VIDC_VIDEO_IDR_PERIOD, .value = 1},
     };
     for (auto ctrl : ctrls) {
-      util::safe_ioctl(fd, VIDIOC_S_CTRL, &ctrl, "VIDIOC_S_CTRL failed");
+      checked_ioctl(fd, VIDIOC_S_CTRL, &ctrl);
     }
   }
 
-  if (is_h265) {
+  if (encoder_info.encode_type == cereal::EncodeIndex::Type::FULL_H_E_V_C) {
     struct v4l2_control ctrls[] = {
       { .id = V4L2_CID_MPEG_VIDC_VIDEO_HEVC_PROFILE, .value = V4L2_MPEG_VIDC_VIDEO_HEVC_PROFILE_MAIN},
       { .id = V4L2_CID_MPEG_VIDC_VIDEO_HEVC_TIER_LEVEL, .value = V4L2_MPEG_VIDC_VIDEO_HEVC_LEVEL_HIGH_TIER_LEVEL_5},
       { .id = V4L2_CID_MPEG_VIDC_VIDEO_VUI_TIMING_INFO, .value = V4L2_MPEG_VIDC_VIDEO_VUI_TIMING_INFO_ENABLED},
+      { .id = V4L2_CID_MPEG_VIDC_VIDEO_NUM_P_FRAMES, .value = 29},
+      { .id = V4L2_CID_MPEG_VIDC_VIDEO_NUM_B_FRAMES, .value = 0},
     };
     for (auto ctrl : ctrls) {
-      util::safe_ioctl(fd, VIDIOC_S_CTRL, &ctrl, "VIDIOC_S_CTRL failed");
+      checked_ioctl(fd, VIDIOC_S_CTRL, &ctrl);
     }
   } else {
     struct v4l2_control ctrls[] = {
       { .id = V4L2_CID_MPEG_VIDEO_H264_PROFILE, .value = V4L2_MPEG_VIDEO_H264_PROFILE_HIGH},
       { .id = V4L2_CID_MPEG_VIDEO_H264_LEVEL, .value = V4L2_MPEG_VIDEO_H264_LEVEL_UNKNOWN},
+      { .id = V4L2_CID_MPEG_VIDC_VIDEO_NUM_P_FRAMES, .value = 14},
+      { .id = V4L2_CID_MPEG_VIDC_VIDEO_NUM_B_FRAMES, .value = 0},
       { .id = V4L2_CID_MPEG_VIDEO_H264_ENTROPY_MODE, .value = V4L2_MPEG_VIDEO_H264_ENTROPY_MODE_CABAC},
       { .id = V4L2_CID_MPEG_VIDC_VIDEO_H264_CABAC_MODEL, .value = V4L2_CID_MPEG_VIDC_VIDEO_H264_CABAC_MODEL_0},
       { .id = V4L2_CID_MPEG_VIDEO_H264_LOOP_FILTER_MODE, .value = 0},
@@ -242,7 +245,7 @@ V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_hei
       { .id = V4L2_CID_MPEG_VIDEO_MULTI_SLICE_MODE, .value = 0},
     };
     for (auto ctrl : ctrls) {
-      util::safe_ioctl(fd, VIDIOC_S_CTRL, &ctrl, "VIDIOC_S_CTRL failed");
+      checked_ioctl(fd, VIDIOC_S_CTRL, &ctrl);
     }
   }
 
@@ -252,9 +255,9 @@ V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_hei
 
   // start encoder
   v4l2_buf_type buf_type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-  util::safe_ioctl(fd, VIDIOC_STREAMON, &buf_type, "VIDIOC_STREAMON failed");
+  checked_ioctl(fd, VIDIOC_STREAMON, &buf_type);
   buf_type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-  util::safe_ioctl(fd, VIDIOC_STREAMON, &buf_type, "VIDIOC_STREAMON failed");
+  checked_ioctl(fd, VIDIOC_STREAMON, &buf_type);
 
   // queue up output buffers
   for (unsigned int i = 0; i < BUF_OUT_COUNT; i++) {
@@ -267,7 +270,7 @@ V4LEncoder::V4LEncoder(const EncoderInfo &encoder_info, int in_width, int in_hei
   }
 }
 
-void V4LEncoder::encoder_open() {
+void V4LEncoder::encoder_open(const char* path) {
   dequeue_handler_thread = std::thread(V4LEncoder::dequeue_handler, this);
   this->is_open = true;
   this->counter = 0;
@@ -297,7 +300,7 @@ void V4LEncoder::encoder_close() {
     for (int i = 0; i < BUF_IN_COUNT; i++) free_buf_in.push(i);
     // no frames, stop the encoder
     struct v4l2_encoder_cmd encoder_cmd = { .cmd = V4L2_ENC_CMD_STOP };
-    util::safe_ioctl(fd, VIDIOC_ENCODER_CMD, &encoder_cmd, "VIDIOC_ENCODER_CMD failed");
+    checked_ioctl(fd, VIDIOC_ENCODER_CMD, &encoder_cmd);
     // join waits for V4L2_QCOM_BUF_FLAG_EOS
     dequeue_handler_thread.join();
     assert(extras.empty());
@@ -308,10 +311,10 @@ void V4LEncoder::encoder_close() {
 V4LEncoder::~V4LEncoder() {
   encoder_close();
   v4l2_buf_type buf_type = V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE;
-  util::safe_ioctl(fd, VIDIOC_STREAMOFF, &buf_type, "VIDIOC_STREAMOFF failed");
+  checked_ioctl(fd, VIDIOC_STREAMOFF, &buf_type);
   request_buffers(fd, V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE, 0);
   buf_type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
-  util::safe_ioctl(fd, VIDIOC_STREAMOFF, &buf_type, "VIDIOC_STREAMOFF failed");
+  checked_ioctl(fd, VIDIOC_STREAMOFF, &buf_type);
   request_buffers(fd, V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE, 0);
   close(fd);
 

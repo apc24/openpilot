@@ -4,11 +4,10 @@ import math
 import datetime
 from collections import Counter
 from pprint import pprint
-from typing import cast
+from typing import List, Tuple, cast
 
 from cereal.services import SERVICE_LIST
 from openpilot.tools.lib.logreader import LogReader, ReadMode
-from openpilot.selfdrive.test.process_replay.migration import migrate_all
 
 if __name__ == "__main__":
   cnt_events: Counter = Counter()
@@ -16,12 +15,12 @@ if __name__ == "__main__":
   cams = [s for s in SERVICE_LIST if s.endswith('CameraState')]
   cnt_cameras = dict.fromkeys(cams, 0)
 
-  events: list[tuple[float, set[str]]] = []
-  alerts: list[tuple[float, str]] = []
+  events: List[Tuple[float, set[str]]] = []
+  alerts: List[Tuple[float, str]] = []
   start_time = math.inf
   end_time = -math.inf
   ignition_off = None
-  for msg in migrate_all(LogReader(sys.argv[1], ReadMode.QLOG)):
+  for msg in LogReader(sys.argv[1], ReadMode.QLOG):
     t = (msg.logMonoTime - start_time) / 1e9
     end_time = max(end_time, msg.logMonoTime)
     start_time = min(start_time, msg.logMonoTime)
@@ -34,8 +33,8 @@ if __name__ == "__main__":
       if len(events) == 0 or ae != events[-1][1]:
         events.append((t, ae))
 
-    elif msg.which() == 'selfdriveState':
-      at = msg.selfdriveState.alertType
+    elif msg.which() == 'controlsState':
+      at = msg.controlsState.alertType
       if "/override" not in at or "lanechange" in at.lower():
         if len(alerts) == 0 or alerts[-1][1] != at:
           alerts.append((t, at))

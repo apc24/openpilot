@@ -4,9 +4,7 @@ import array
 import os
 import struct
 from fcntl import ioctl
-from typing import NoReturn
-
-from openpilot.tools.sim.bridge.common import control_cmd_gen
+from typing import NoReturn, Dict, List
 
 # Iterate over the joystick devices.
 print('Available devices:')
@@ -15,8 +13,8 @@ for fn in os.listdir('/dev/input'):
     print(f'  /dev/input/{fn}')
 
 # We'll store the states here.
-axis_states: dict[str, float] = {}
-button_states: dict[str, float] = {}
+axis_states: Dict[str, float] = {}
+button_states: Dict[str, float] = {}
 
 # These constants were borrowed from linux/input.h
 axis_names = {
@@ -90,8 +88,8 @@ button_names = {
   0x2c3 : 'dpad_down',
 }
 
-axis_name_list: list[str] = []
-button_name_list: list[str] = []
+axis_name_list: List[str] = []
+button_name_list: List[str] = []
 
 def wheel_poll_thread(q: 'Queue[str]') -> NoReturn:
   # Open the joystick device.
@@ -133,8 +131,8 @@ def wheel_poll_thread(q: 'Queue[str]') -> NoReturn:
     button_name_list.append(btn_name)
     button_states[btn_name] = 0
 
-  print(f'{num_axes} axes found: {", ".join(axis_name_list)}')
-  print(f'{num_buttons} buttons found: {", ".join(button_name_list)}')
+  print('%d axes found: %s' % (num_axes, ', '.join(axis_name_list)))
+  print('%d buttons found: %s' % (num_buttons, ', '.join(button_name_list)))
 
   # Enable FF
   import evdev
@@ -155,33 +153,33 @@ def wheel_poll_thread(q: 'Queue[str]') -> NoReturn:
         fvalue = value / 32767.0
         axis_states[axis] = fvalue
         normalized = (1 - fvalue) * 50
-        q.put(control_cmd_gen(f"throttle_{normalized:f}"))
+        q.put(f"throttle_{normalized:f}")
 
       elif axis == "rz":  # brake
         fvalue = value / 32767.0
         axis_states[axis] = fvalue
         normalized = (1 - fvalue) * 50
-        q.put(control_cmd_gen(f"brake_{normalized:f}"))
+        q.put(f"brake_{normalized:f}")
 
       elif axis == "x":  # steer angle
         fvalue = value / 32767.0
         axis_states[axis] = fvalue
         normalized = fvalue
-        q.put(control_cmd_gen(f"steer_{normalized:f}"))
+        q.put(f"steer_{normalized:f}")
 
     elif mtype & 0x01:  # buttons
       if value == 1: # press down
         if number in [0, 19]:  # X
-          q.put(control_cmd_gen("cruise_down"))
+          q.put("cruise_down")
 
         elif number in [3, 18]:  # triangle
-          q.put(control_cmd_gen("cruise_up"))
+          q.put("cruise_up")
 
         elif number in [1, 6]:  # square
-          q.put(control_cmd_gen("cruise_cancel"))
+          q.put("cruise_cancel")
 
         elif number in [10, 21]:  # R3
-          q.put(control_cmd_gen("reverse_switch"))
+          q.put("reverse_switch")
 
 if __name__ == '__main__':
   from multiprocessing import Process, Queue

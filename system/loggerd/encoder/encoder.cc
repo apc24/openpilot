@@ -6,14 +6,15 @@ VideoEncoder::VideoEncoder(const EncoderInfo &encoder_info, int in_width, int in
   out_width = encoder_info.frame_width > 0 ? encoder_info.frame_width : in_width;
   out_height = encoder_info.frame_height > 0 ? encoder_info.frame_height : in_height;
 
-  pm.reset(new PubMaster(std::vector{encoder_info.publish_name}));
+  pm.reset(new PubMaster({encoder_info.publish_name}));
 }
 
-void VideoEncoder::publisher_publish(int segment_num, uint32_t idx, VisionIpcBufExtra &extra,
+void VideoEncoder::publisher_publish(VideoEncoder *e, int segment_num, uint32_t idx, VisionIpcBufExtra &extra,
                                      unsigned int flags, kj::ArrayPtr<capnp::byte> header, kj::ArrayPtr<capnp::byte> dat) {
+  // broadcast packet
   MessageBuilder msg;
   auto event = msg.initEvent(true);
-  auto edat = (event.*(encoder_info.init_encode_data_func))();
+  auto edat = (event.*(e->encoder_info.init_encode_data_func))();
   auto edata = edat.initIdx();
   struct timespec ts;
   timespec_get(&ts, TIME_UTC);
@@ -21,22 +22,22 @@ void VideoEncoder::publisher_publish(int segment_num, uint32_t idx, VisionIpcBuf
   edata.setFrameId(extra.frame_id);
   edata.setTimestampSof(extra.timestamp_sof);
   edata.setTimestampEof(extra.timestamp_eof);
-  edata.setType(encoder_info.get_settings(in_width).encode_type);
-  edata.setEncodeId(cnt++);
+  edata.setType(e->encoder_info.encode_type);
+  edata.setEncodeId(e->cnt++);
   edata.setSegmentNum(segment_num);
   edata.setSegmentId(idx);
   edata.setFlags(flags);
   edata.setLen(dat.size());
-  edat.adoptData(msg.getOrphanage().referenceExternalData(dat));
+  edat.setData(dat);
   edat.setWidth(out_width);
   edat.setHeight(out_height);
   if (flags & V4L2_BUF_FLAG_KEYFRAME) edat.setHeader(header);
 
   uint32_t bytes_size = capnp::computeSerializedSizeInWords(msg) * sizeof(capnp::word);
-  if (msg_cache.size() < bytes_size) {
-    msg_cache.resize(bytes_size);
+  if (e->msg_cache.size() < bytes_size) {
+    e->msg_cache.resize(bytes_size);
   }
-  kj::ArrayOutputStream output_stream(kj::ArrayPtr<capnp::byte>(msg_cache.data(), bytes_size));
+  kj::ArrayOutputStream output_stream(kj::ArrayPtr<capnp::byte>(e->msg_cache.data(), bytes_size));
   capnp::writeMessage(output_stream, msg);
-  pm->send(encoder_info.publish_name, msg_cache.data(), bytes_size);
+  e->pm->send(e->encoder_info.publish_name, e->msg_cache.data(), bytes_size);
 }

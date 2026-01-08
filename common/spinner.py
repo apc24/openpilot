@@ -3,12 +3,12 @@ import subprocess
 from openpilot.common.basedir import BASEDIR
 
 
-class Spinner:
+class Spinner():
   def __init__(self):
     try:
-      self.spinner_proc = subprocess.Popen(["./spinner.py"],
+      self.spinner_proc = subprocess.Popen(["./spinner"],
                                            stdin=subprocess.PIPE,
-                                           cwd=os.path.join(BASEDIR, "system", "ui"),
+                                           cwd=os.path.join(BASEDIR, "selfdrive", "ui"),
                                            close_fds=True)
     except OSError:
       self.spinner_proc = None

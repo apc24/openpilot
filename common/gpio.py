@@ -1,7 +1,6 @@
 import os
-import fcntl
-import ctypes
-from functools import cache
+from functools import lru_cache
+from typing import Optional, List
 
 def gpio_init(pin: int, output: bool) -> None:
   try:
@@ -17,7 +16,7 @@ def gpio_set(pin: int, high: bool) -> None:
   except Exception as e:
     print(f"Failed to set gpio {pin} value: {e}")
 
-def gpio_read(pin: int) -> bool | None:
+def gpio_read(pin: int) -> Optional[bool]:
   val = None
   try:
     with open(f"/sys/class/gpio/gpio{pin}/value", 'rb') as f:
@@ -37,8 +36,8 @@ def gpio_export(pin: int) -> None:
   except Exception:
     print(f"Failed to export gpio {pin}")
 
-@cache
-def get_irq_action(irq: int) -> list[str]:
+@lru_cache(maxsize=None)
+def get_irq_action(irq: int) -> List[str]:
   try:
     with open(f"/sys/kernel/irq/{irq}/actions") as f:
       actions = f.read().strip().split(',')
@@ -46,7 +45,7 @@ def get_irq_action(irq: int) -> list[str]:
   except FileNotFoundError:
     return []
 
-def get_irqs_for_action(action: str) -> list[str]:
+def get_irqs_for_action(action: str) -> List[str]:
   ret = []
   with open("/proc/interrupts") as f:
     for l in f.readlines():
@@ -54,36 +53,3 @@ def get_irqs_for_action(action: str) -> list[str]:
       if irq.isdigit() and action in get_irq_action(irq):
         ret.append(irq)
   return ret
-
-# *** gpiochip ***
-
-class gpioevent_data(ctypes.Structure):
-  _fields_ = [
-    ("timestamp", ctypes.c_uint64),
-    ("id", ctypes.c_uint32),
-  ]
-
-class gpioevent_request(ctypes.Structure):
-  _fields_ = [
-    ("lineoffset", ctypes.c_uint32),
-    ("handleflags", ctypes.c_uint32),
-    ("eventflags", ctypes.c_uint32),
-    ("label", ctypes.c_char * 32),
-    ("fd", ctypes.c_int)
-  ]
-
-def gpiochip_get_ro_value_fd(label: str, gpiochip_id: int, pin: int) -> int:
-  GPIOEVENT_REQUEST_BOTH_EDGES = 0x3
-  GPIOHANDLE_REQUEST_INPUT = 0x1
-  GPIO_GET_LINEEVENT_IOCTL = 0xc030b404
-
-  rq = gpioevent_request()
-  rq.lineoffset = pin
-  rq.handleflags = GPIOHANDLE_REQUEST_INPUT
-  rq.eventflags = GPIOEVENT_REQUEST_BOTH_EDGES
-  rq.label = label.encode('utf-8')[:31] + b'\0'
-
-  fd = os.open(f"/dev/gpiochip{gpiochip_id}", os.O_RDONLY)
-  fcntl.ioctl(fd, GPIO_GET_LINEEVENT_IOCTL, rq)
-  os.close(fd)
-  return int(rq.fd)

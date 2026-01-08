@@ -2,39 +2,50 @@
 import os
 import time
 import copy
+import json
 import heapq
 import signal
-from collections import Counter
+import platform
+from collections import OrderedDict
 from dataclasses import dataclass, field
-from itertools import islice
-from typing import Any
-from collections.abc import Callable, Iterable
+from typing import Dict, List, Optional, Callable, Union, Any, Iterable, Tuple
 from tqdm import tqdm
 import capnp
-from openpilot.system.hardware.hw import Paths
 
 import cereal.messaging as messaging
 from cereal import car
 from cereal.services import SERVICE_LIST
-from msgq.visionipc import VisionIpcServer, get_endpoint_name as vipc_get_endpoint_name
-from opendbc.car.can_definitions import CanData
-from opendbc.car.car_helpers import get_car, interfaces
+from cereal.visionipc import VisionIpcServer, get_endpoint_name as vipc_get_endpoint_name
 from openpilot.common.params import Params
 from openpilot.common.prefix import OpenpilotPrefix
 from openpilot.common.timeout import Timeout
 from openpilot.common.realtime import DT_CTRL
-from openpilot.system.manager.process_config import managed_processes
+from panda.python import ALTERNATIVE_EXPERIENCE
+from openpilot.selfdrive.car.car_helpers import get_car, interfaces
+from openpilot.selfdrive.manager.process_config import managed_processes
 from openpilot.selfdrive.test.process_replay.vision_meta import meta_from_camera_state, available_streams
 from openpilot.selfdrive.test.process_replay.migration import migrate_all
 from openpilot.selfdrive.test.process_replay.capture import ProcessOutputCapture
 from openpilot.tools.lib.logreader import LogIterable
-from openpilot.tools.lib.framereader import FrameReader
+from openpilot.tools.lib.framereader import BaseFrameReader
 
 # Numpy gives different results based on CPU features after version 19
-NUMPY_TOLERANCE = 1e-2
+NUMPY_TOLERANCE = 1e-7
 PROC_REPLAY_DIR = os.path.dirname(os.path.abspath(__file__))
 FAKEDATA = os.path.join(PROC_REPLAY_DIR, "fakedata/")
 
+class DummySocket:
+  def __init__(self):
+    self.data: List[bytes] = []
+
+  def receive(self, non_blocking: bool = False) -> Optional[bytes]:
+    if non_blocking:
+      return None
+
+    return self.data.pop()
+
+  def send(self, data: bytes):
+    self.data.append(data)
 
 class LauncherWithCapture:
   def __init__(self, capture: ProcessOutputCapture, launcher: Callable):
@@ -52,7 +63,8 @@ class ReplayContext:
     self.pubs = cfg.pubs
     self.main_pub = cfg.main_pub
     self.main_pub_drained = cfg.main_pub_drained
-    assert len(self.pubs) != 0 or self.main_pub is not None
+    self.unlocked_pubs = cfg.unlocked_pubs
+    assert(len(self.pubs) != 0 or self.main_pub is not None)
 
   def __enter__(self):
     self.open_context()
@@ -67,8 +79,9 @@ class ReplayContext:
     messaging.set_fake_prefix(self.proc_name)
 
     if self.main_pub is None:
-      self.events = {}
-      for pub in self.pubs:
+      self.events = OrderedDict()
+      pubs_with_events = [pub for pub in self.pubs if pub not in self.unlocked_pubs]
+      for pub in pubs_with_events:
         self.events[pub] = messaging.fake_event_handle(pub, enable=True)
     else:
       self.events = {self.main_pub: messaging.fake_event_handle(self.main_pub, enable=True)}
@@ -115,52 +128,47 @@ class ReplayContext:
 @dataclass
 class ProcessConfig:
   proc_name: str
-  pubs: list[str]
-  subs: list[str]
-  ignore: list[str]
-  config_callback: Callable | None = None
-  init_callback: Callable | None = None
-  should_recv_callback: Callable | None = None
-  tolerance: float | None = None
+  pubs: List[str]
+  subs: List[str]
+  ignore: List[str]
+  config_callback: Optional[Callable] = None
+  init_callback: Optional[Callable] = None
+  should_recv_callback: Optional[Callable] = None
+  tolerance: Optional[float] = None
   processing_time: float = 0.001
   timeout: int = 30
   simulation: bool = True
-  # Set to service process receives on first
-  main_pub: str | None = None
-  main_pub_drained: bool = False
-  vision_pubs: list[str] = field(default_factory=list)
-  ignore_alive_pubs: list[str] = field(default_factory=list)
-
-  def __post_init__(self):
-    # If the process is polling a service, we can just lock that one to speed up replay
-    if self.main_pub is None and isinstance(self.should_recv_callback, MessageBasedRcvCallback):
-      self.main_pub = self.should_recv_callback.trigger_msg_type
+  main_pub: Optional[str] = None
+  main_pub_drained: bool = True
+  vision_pubs: List[str] = field(default_factory=list)
+  ignore_alive_pubs: List[str] = field(default_factory=list)
+  unlocked_pubs: List[str] = field(default_factory=list)
 
 
 class ProcessContainer:
   def __init__(self, cfg: ProcessConfig):
-    self.prefix = OpenpilotPrefix(create_dirs_on_enter=False, clean_dirs_on_exit=False)
+    self.prefix = OpenpilotPrefix(clean_dirs_on_exit=False)
     self.cfg = copy.deepcopy(cfg)
     self.process = copy.deepcopy(managed_processes[cfg.proc_name])
-    self.msg_queue: list[capnp._DynamicStructReader] = []
+    self.msg_queue: List[capnp._DynamicStructReader] = []
     self.cnt = 0
-    self.pm: messaging.PubMaster | None = None
-    self.sockets: list[messaging.SubSocket] | None = None
-    self.rc: ReplayContext | None = None
-    self.vipc_server: VisionIpcServer | None = None
-    self.environ_config: dict[str, Any] | None = None
-    self.capture: ProcessOutputCapture | None = None
+    self.pm: Optional[messaging.PubMaster] = None
+    self.sockets: Optional[List[messaging.SubSocket]] = None
+    self.rc: Optional[ReplayContext] = None
+    self.vipc_server: Optional[VisionIpcServer] = None
+    self.environ_config: Optional[Dict[str, Any]] = None
+    self.capture: Optional[ProcessOutputCapture] = None
 
   @property
   def has_empty_queue(self) -> bool:
     return len(self.msg_queue) == 0
 
   @property
-  def pubs(self) -> list[str]:
+  def pubs(self) -> List[str]:
     return self.cfg.pubs
 
   @property
-  def subs(self) -> list[str]:
+  def subs(self) -> List[str]:
     return self.cfg.subs
 
   def _clean_env(self):
@@ -172,7 +180,7 @@ class ProcessContainer:
       if k in os.environ:
         del os.environ[k]
 
-  def _setup_env(self, params_config: dict[str, Any], environ_config: dict[str, Any]):
+  def _setup_env(self, params_config: Dict[str, Any], environ_config: Dict[str, Any]):
     for k, v in environ_config.items():
       if len(v) != 0:
         os.environ[k] = v
@@ -194,16 +202,15 @@ class ProcessContainer:
 
     self.environ_config = environ_config
 
-  def _setup_vision_ipc(self, all_msgs: LogIterable, frs: dict[str, Any]):
+  def _setup_vision_ipc(self, all_msgs: LogIterable, frs: Dict[str, Any]):
     assert len(self.cfg.vision_pubs) != 0
 
     vipc_server = VisionIpcServer("camerad")
     streams_metas = available_streams(all_msgs)
     for meta in streams_metas:
       if meta.camera_state in self.cfg.vision_pubs:
-        assert frs[meta.camera_state].pix_fmt == 'nv12'
         frame_size = (frs[meta.camera_state].w, frs[meta.camera_state].h)
-        vipc_server.create_buffers(meta.stream, 2, *frame_size)
+        vipc_server.create_buffers(meta.stream, 2, False, *frame_size)
     vipc_server.start_listener()
 
     self.vipc_server = vipc_server
@@ -216,12 +223,11 @@ class ProcessContainer:
     self.process.start()
 
   def start(
-    self, params_config: dict[str, Any], environ_config: dict[str, Any],
-    all_msgs: LogIterable, frs: dict[str, FrameReader] | None,
-    fingerprint: str | None, capture_output: bool
+    self, params_config: Dict[str, Any], environ_config: Dict[str, Any],
+    all_msgs: LogIterable, frs: Optional[Dict[str, BaseFrameReader]],
+    fingerprint: Optional[str], capture_output: bool
   ):
     with self.prefix as p:
-      self.prefix.create_dirs()
       self._setup_env(params_config, environ_config)
 
       if self.cfg.config_callback is not None:
@@ -247,6 +253,11 @@ class ProcessContainer:
       if self.cfg.init_callback is not None:
         self.cfg.init_callback(self.rc, self.pm, all_msgs, fingerprint)
 
+      # wait for process to startup
+      with Timeout(10, error_msg=f"timed out waiting for process to start: {repr(self.cfg.proc_name)}"):
+        while not all(self.pm.all_readers_updated(s) for s in self.cfg.pubs if s not in self.cfg.ignore_alive_pubs):
+          time.sleep(0)
+
   def stop(self):
     with self.prefix:
       self.process.signal(signal.SIGKILL)
@@ -255,42 +266,28 @@ class ProcessContainer:
       self.prefix.clean_dirs()
       self._clean_env()
 
-  def get_output_msgs(self, start_time: int):
-    assert self.rc and self.sockets
-
-    output_msgs = []
-    self.rc.wait_for_recv_called()
-    for socket in self.sockets:
-      ms = messaging.drain_sock(socket)
-      for m in ms:
-        m = m.as_builder()
-        m.logMonoTime = start_time + int(self.cfg.processing_time * 1e9)
-        output_msgs.append(m.as_reader())
-    return output_msgs
-
-  def run_step(self, msg: capnp._DynamicStructReader, frs: dict[str, FrameReader] | None) -> list[capnp._DynamicStructReader]:
+  def run_step(self, msg: capnp._DynamicStructReader, frs: Optional[Dict[str, BaseFrameReader]]) -> List[capnp._DynamicStructReader]:
     assert self.rc and self.pm and self.sockets and self.process.proc
 
     output_msgs = []
-    end_of_cycle = True
-    if self.cfg.should_recv_callback is not None:
-      end_of_cycle = self.cfg.should_recv_callback(msg, self.cfg, self.cnt)
+    with self.prefix, Timeout(self.cfg.timeout, error_msg=f"timed out testing process {repr(self.cfg.proc_name)}"):
+      end_of_cycle = True
+      if self.cfg.should_recv_callback is not None:
+        end_of_cycle = self.cfg.should_recv_callback(msg, self.cfg, self.cnt)
 
-    self.msg_queue.append(msg)
-    if end_of_cycle:
-      with self.prefix, Timeout(self.cfg.timeout, error_msg=f"timed out testing process {repr(self.cfg.proc_name)}"):
+      self.msg_queue.append(msg)
+      if end_of_cycle:
+        self.rc.wait_for_recv_called()
+
         # call recv to let sub-sockets reconnect, after we know the process is ready
         if self.cnt == 0:
           for s in self.sockets:
             messaging.recv_one_or_none(s)
 
-        # certain processes use drain_sock. need to cause empty recv to break from this loop
+        # empty recv on drained pub indicates the end of messages, only do that if there're any
         trigger_empty_recv = False
         if self.cfg.main_pub and self.cfg.main_pub_drained:
-          trigger_empty_recv = any(m.which() == self.cfg.main_pub for m in self.msg_queue)
-
-        # get output msgs from previous inputs
-        output_msgs = self.get_output_msgs(msg.logMonoTime)
+          trigger_empty_recv = next((True for m in self.msg_queue if m.which() == self.cfg.main_pub), False)
 
         for m in self.msg_queue:
           self.pm.send(m.which(), m.as_builder())
@@ -299,26 +296,32 @@ class ProcessContainer:
             camera_state = getattr(m, m.which())
             camera_meta = meta_from_camera_state(m.which())
             assert frs is not None
-            img = frs[m.which()].get(camera_state.frameId)
+            img = frs[m.which()].get(camera_state.frameId, pix_fmt="nv12")[0]
             self.vipc_server.send(camera_meta.stream, img.flatten().tobytes(),
                                   camera_state.frameId, camera_state.timestampSof, camera_state.timestampEof)
         self.msg_queue = []
 
         self.rc.unlock_sockets()
-        if trigger_empty_recv:
-          self.rc.unlock_sockets()
+        self.rc.wait_for_next_recv(trigger_empty_recv)
+
+        for socket in self.sockets:
+          ms = messaging.drain_sock(socket)
+          for m in ms:
+            m = m.as_builder()
+            m.logMonoTime = msg.logMonoTime + int(self.cfg.processing_time * 1e9)
+            output_msgs.append(m.as_reader())
         self.cnt += 1
     assert self.process.proc.is_alive()
 
     return output_msgs
 
 
-def card_fingerprint_callback(rc, pm, msgs, fingerprint):
+def controlsd_fingerprint_callback(rc, pm, msgs, fingerprint):
   print("start fingerprinting")
   params = Params()
-  canmsgs = list(islice((m for m in msgs if m.which() == "can"), 300))
+  canmsgs = [msg for msg in msgs if msg.which() == "can"][:300]
 
-  # card expects one arbitrary can and pandaState
+  # controlsd expects one arbitrary can and pandaState
   rc.send_sync(pm, "can", messaging.new_message("can", 1))
   pm.send("pandaStates", messaging.new_message("pandaStates", 1))
   rc.send_sync(pm, "can", messaging.new_message("can", 1))
@@ -331,36 +334,33 @@ def card_fingerprint_callback(rc, pm, msgs, fingerprint):
 
     m = canmsgs.pop(0)
     rc.send_sync(pm, "can", m.as_builder().to_bytes())
-    rc.wait_for_next_recv(True)
+    rc.wait_for_next_recv(False)
 
 
 def get_car_params_callback(rc, pm, msgs, fingerprint):
   params = Params()
   if fingerprint:
-    CarInterface = interfaces[fingerprint]
+    CarInterface, _, _ = interfaces[fingerprint]
     CP = CarInterface.get_non_essential_params(fingerprint)
   else:
-    can_msgs = ([CanData(can.address, can.dat, can.src) for can in m.can] for m in msgs if m.which() == "can")
-    cached_params_raw = params.get("CarParamsCache")
-    assert next(can_msgs, None), "CAN messages are required for fingerprinting"
-    assert os.environ.get("SKIP_FW_QUERY", False) or cached_params_raw is not None, \
+    can = DummySocket()
+    sendcan = DummySocket()
+
+    canmsgs = [msg for msg in msgs if msg.which() == "can"]
+    has_cached_cp = params.get("CarParamsCache") is not None
+    assert len(canmsgs) != 0, "CAN messages are required for fingerprinting"
+    assert os.environ.get("SKIP_FW_QUERY", False) or has_cached_cp, \
             "CarParamsCache is required for fingerprinting. Make sure to keep carParams msgs in the logs."
 
-    def can_recv(wait_for_one: bool = False) -> list[list[CanData]]:
-      return [next(can_msgs, [])]
-
-    cached_params = None
-    if cached_params_raw is not None:
-      with car.CarParams.from_bytes(cached_params_raw) as _cached_params:
-        cached_params = _cached_params
-
-    CP = get_car(can_recv, lambda _msgs: None, lambda obd: None, params.get_bool("AlphaLongitudinalEnabled"), False, cached_params=cached_params).CP
-
+    for m in canmsgs[:300]:
+      can.send(m.as_builder().to_bytes())
+    _, CP = get_car(can, sendcan, Params().get_bool("ExperimentalLongitudinalEnabled"))
   params.put("CarParams", CP.to_bytes())
+  return CP
 
 
-def card_rcv_callback(msg, cfg, frame):
-  # no sendcan until card is initialized
+def controlsd_rcv_callback(msg, cfg, frame):
+  # no sendcan until controlsd is initialized
   if msg.which() != "can":
     return False
 
@@ -371,6 +371,21 @@ def card_rcv_callback(msg, cfg, frame):
   if "sendcan" in socks and (frame - 1) < 2000:
     socks.remove("sendcan")
   return len(socks) > 0
+
+
+def calibration_rcv_callback(msg, cfg, frame):
+  # calibrationd publishes 1 calibrationData every 5 cameraOdometry packets.
+  # should_recv always true to increment frame
+  return (frame - 1) == 0 or msg.which() == 'cameraOdometry'
+
+
+def torqued_rcv_callback(msg, cfg, frame):
+  # should_recv always true to increment frame
+  return (frame - 1) == 0 or msg.which() == 'liveLocationKalman'
+
+
+def dmonitoringmodeld_rcv_callback(msg, cfg, frame):
+  return msg.which() == "driverCameraState"
 
 
 class ModeldCameraSyncRcvCallback:
@@ -397,16 +412,44 @@ class ModeldCameraSyncRcvCallback:
 
 
 class MessageBasedRcvCallback:
-  def __init__(self, trigger_msg_type: str, first_frame: bool = False):
+  def __init__(self, trigger_msg_type):
     self.trigger_msg_type = trigger_msg_type
-    self.first_frame = first_frame
 
   def __call__(self, msg, cfg, frame):
-    # publish on first frame or trigger msg
-    return ((frame - 1) == 0 and self.first_frame) or msg.which() == self.trigger_msg_type
+    return msg.which() == self.trigger_msg_type
 
 
-def selfdrived_config_callback(params, cfg, lr):
+class FrequencyBasedRcvCallback:
+  def __init__(self, trigger_msg_type):
+    self.trigger_msg_type = trigger_msg_type
+
+  def __call__(self, msg, cfg, frame):
+    if msg.which() != self.trigger_msg_type:
+      return False
+
+    resp_sockets = [
+      s for s in cfg.subs
+      if frame % max(1, int(SERVICE_LIST[msg.which()].frequency / SERVICE_LIST[s].frequency)) == 0
+    ]
+    return bool(len(resp_sockets))
+
+
+def controlsd_config_callback(params, cfg, lr):
+  controlsState = None
+  initialized = False
+  for msg in lr:
+    if msg.which() == "controlsState":
+      controlsState = msg.controlsState
+      if initialized:
+        break
+    elif msg.which() == "onroadEvents":
+      initialized = car.CarEvent.EventName.controlsInitializing not in [e.name for e in msg.onroadEvents]
+
+  assert controlsState is not None and initialized, "controlsState never initialized"
+  params.put("ReplayControlsState", controlsState.as_builder().to_bytes())
+
+
+def locationd_config_pubsub_callback(params, cfg, lr):
   ublox = params.get_bool("UbloxAvailable")
   sub_keys = ({"gpsLocation", } if ublox else {"gpsLocationExternal", })
 
@@ -415,106 +458,75 @@ def selfdrived_config_callback(params, cfg, lr):
 
 CONFIGS = [
   ProcessConfig(
-    proc_name="selfdrived",
-    pubs=[
-      "carState", "deviceState", "pandaStates", "peripheralState", "liveCalibration", "driverMonitoringState",
-      "longitudinalPlan", "livePose", "liveDelay", "liveParameters", "radarState", "modelV2",
-      "driverCameraState", "roadCameraState", "wideRoadCameraState", "managerState", "liveTorqueParameters",
-      "accelerometer", "gyroscope", "carOutput", "gpsLocationExternal", "gpsLocation", "controlsState",
-      "carControl", "driverAssistance", "alertDebug", "audioFeedback",
-    ],
-    subs=["selfdriveState", "onroadEvents"],
-    ignore=["logMonoTime"],
-    config_callback=selfdrived_config_callback,
-    init_callback=get_car_params_callback,
-    should_recv_callback=MessageBasedRcvCallback("carState", True),
-    tolerance=NUMPY_TOLERANCE,
-    processing_time=0.004,
-  ),
-  ProcessConfig(
     proc_name="controlsd",
-    pubs=["liveParameters", "liveTorqueParameters", "modelV2", "selfdriveState",
-          "liveCalibration", "livePose", "longitudinalPlan", "carState", "carOutput",
-          "driverMonitoringState", "onroadEvents", "driverAssistance"],
-    subs=["carControl", "controlsState"],
-    ignore=["logMonoTime", ],
-    init_callback=get_car_params_callback,
-    should_recv_callback=MessageBasedRcvCallback("selfdriveState"),
-    tolerance=NUMPY_TOLERANCE,
-  ),
-  ProcessConfig(
-    proc_name="card",
-    pubs=["pandaStates", "carControl", "onroadEvents", "can"],
-    subs=["sendcan", "carState", "carParams", "carOutput", "liveTracks"],
-    ignore=["logMonoTime", "carState.cumLagMs"],
-    init_callback=card_fingerprint_callback,
-    should_recv_callback=card_rcv_callback,
+    pubs=[
+      "can", "deviceState", "pandaStates", "peripheralState", "liveCalibration", "driverMonitoringState",
+      "longitudinalPlan", "liveLocationKalman", "liveParameters", "radarState",
+      "modelV2", "driverCameraState", "roadCameraState", "wideRoadCameraState", "managerState",
+      "testJoystick", "liveTorqueParameters", "accelerometer", "gyroscope"
+    ],
+    subs=["controlsState", "carState", "carControl", "sendcan", "onroadEvents", "carParams"],
+    ignore=["logMonoTime", "controlsState.startMonoTime", "controlsState.cumLagMs"],
+    config_callback=controlsd_config_callback,
+    init_callback=controlsd_fingerprint_callback,
+    should_recv_callback=controlsd_rcv_callback,
     tolerance=NUMPY_TOLERANCE,
     processing_time=0.004,
     main_pub="can",
-    main_pub_drained=True,
   ),
   ProcessConfig(
     proc_name="radard",
-    pubs=["liveTracks", "carState", "modelV2"],
-    subs=["radarState"],
-    ignore=["logMonoTime"],
+    pubs=["can", "carState", "modelV2"],
+    subs=["radarState", "liveTracks"],
+    ignore=["logMonoTime", "radarState.cumLagMs"],
     init_callback=get_car_params_callback,
-    should_recv_callback=MessageBasedRcvCallback("modelV2"),
+    should_recv_callback=MessageBasedRcvCallback("can"),
+    main_pub="can",
   ),
   ProcessConfig(
     proc_name="plannerd",
-    pubs=["modelV2", "carControl", "carState", "controlsState", "liveParameters", "radarState", "selfdriveState"],
-    subs=["longitudinalPlan", "driverAssistance"],
+    pubs=["modelV2", "carControl", "carState", "controlsState", "radarState"],
+    subs=["longitudinalPlan", "uiPlan"],
     ignore=["logMonoTime", "longitudinalPlan.processingDelay", "longitudinalPlan.solverExecutionTime"],
     init_callback=get_car_params_callback,
-    should_recv_callback=MessageBasedRcvCallback("modelV2"),
+    should_recv_callback=FrequencyBasedRcvCallback("modelV2"),
     tolerance=NUMPY_TOLERANCE,
   ),
   ProcessConfig(
     proc_name="calibrationd",
-    pubs=["carState", "cameraOdometry"],
+    pubs=["carState", "cameraOdometry", "carParams"],
     subs=["liveCalibration"],
     ignore=["logMonoTime"],
-    init_callback=get_car_params_callback,
-    should_recv_callback=MessageBasedRcvCallback("cameraOdometry", True),
+    should_recv_callback=calibration_rcv_callback,
   ),
   ProcessConfig(
     proc_name="dmonitoringd",
-    pubs=["driverStateV2", "liveCalibration", "carState", "modelV2", "selfdriveState"],
+    pubs=["driverStateV2", "liveCalibration", "carState", "modelV2", "controlsState"],
     subs=["driverMonitoringState"],
     ignore=["logMonoTime"],
-    should_recv_callback=MessageBasedRcvCallback("driverStateV2"),
+    should_recv_callback=FrequencyBasedRcvCallback("driverStateV2"),
     tolerance=NUMPY_TOLERANCE,
   ),
   ProcessConfig(
     proc_name="locationd",
     pubs=[
-      "cameraOdometry", "accelerometer", "gyroscope", "liveCalibration", "carState"
+      "cameraOdometry", "accelerometer", "gyroscope", "gpsLocationExternal",
+      "liveCalibration", "carState", "carParams", "gpsLocation"
     ],
-    subs=["livePose"],
+    subs=["liveLocationKalman"],
     ignore=["logMonoTime"],
-    should_recv_callback=MessageBasedRcvCallback("cameraOdometry"),
+    config_callback=locationd_config_pubsub_callback,
     tolerance=NUMPY_TOLERANCE,
   ),
   ProcessConfig(
     proc_name="paramsd",
-    pubs=["livePose", "liveCalibration", "carState"],
+    pubs=["liveLocationKalman", "carState"],
     subs=["liveParameters"],
     ignore=["logMonoTime"],
     init_callback=get_car_params_callback,
-    should_recv_callback=MessageBasedRcvCallback("livePose"),
+    should_recv_callback=FrequencyBasedRcvCallback("liveLocationKalman"),
     tolerance=NUMPY_TOLERANCE,
     processing_time=0.004,
-  ),
-  ProcessConfig(
-    proc_name="lagd",
-    pubs=["livePose", "liveCalibration", "carState", "carControl", "controlsState"],
-    subs=["liveDelay"],
-    ignore=["logMonoTime"],
-    init_callback=get_car_params_callback,
-    should_recv_callback=MessageBasedRcvCallback("livePose"),
-    tolerance=NUMPY_TOLERANCE,
   ),
   ProcessConfig(
     proc_name="ubloxd",
@@ -524,22 +536,23 @@ CONFIGS = [
   ),
   ProcessConfig(
     proc_name="torqued",
-    pubs=["livePose", "liveCalibration", "liveDelay", "carState", "carControl", "carOutput"],
+    pubs=["liveLocationKalman", "carState", "carControl"],
     subs=["liveTorqueParameters"],
     ignore=["logMonoTime"],
     init_callback=get_car_params_callback,
-    should_recv_callback=MessageBasedRcvCallback("livePose", True),
+    should_recv_callback=torqued_rcv_callback,
     tolerance=NUMPY_TOLERANCE,
   ),
   ProcessConfig(
     proc_name="modeld",
-    pubs=["deviceState", "roadCameraState", "wideRoadCameraState", "liveCalibration", "liveDelay", "driverMonitoringState", "carState", "carControl"],
-    subs=["modelV2", "drivingModelData", "cameraOdometry"],
-    ignore=["logMonoTime", "modelV2.frameDropPerc", "modelV2.modelExecutionTime", "drivingModelData.frameDropPerc", "drivingModelData.modelExecutionTime"],
+    pubs=["roadCameraState", "wideRoadCameraState", "liveCalibration", "driverMonitoringState"],
+    subs=["modelV2", "cameraOdometry"],
+    ignore=["logMonoTime", "modelV2.frameDropPerc", "modelV2.modelExecutionTime"],
     should_recv_callback=ModeldCameraSyncRcvCallback(),
     tolerance=NUMPY_TOLERANCE,
     processing_time=0.020,
     main_pub=vipc_get_endpoint_name("camerad", meta_from_camera_state("roadCameraState").stream),
+    main_pub_drained=False,
     vision_pubs=["roadCameraState", "wideRoadCameraState"],
     ignore_alive_pubs=["wideRoadCameraState"],
     init_callback=get_car_params_callback,
@@ -548,11 +561,12 @@ CONFIGS = [
     proc_name="dmonitoringmodeld",
     pubs=["liveCalibration", "driverCameraState"],
     subs=["driverStateV2"],
-    ignore=["logMonoTime", "driverStateV2.modelExecutionTime", "driverStateV2.gpuExecutionTime"],
-    should_recv_callback=MessageBasedRcvCallback("driverCameraState"),
+    ignore=["logMonoTime", "driverStateV2.modelExecutionTime", "driverStateV2.dspExecutionTime"],
+    should_recv_callback=dmonitoringmodeld_rcv_callback,
     tolerance=NUMPY_TOLERANCE,
     processing_time=0.020,
     main_pub=vipc_get_endpoint_name("camerad", meta_from_camera_state("driverCameraState").stream),
+    main_pub_drained=False,
     vision_pubs=["driverCameraState"],
     ignore_alive_pubs=["driverCameraState"],
   ),
@@ -566,7 +580,7 @@ def get_process_config(name: str) -> ProcessConfig:
     raise Exception(f"Cannot find process config with name: {name}") from ex
 
 
-def get_custom_params_from_lr(lr: LogIterable, initial_state: str = "first") -> dict[str, Any]:
+def get_custom_params_from_lr(lr: LogIterable, initial_state: str = "first") -> Dict[str, Any]:
   """
   Use this to get custom params dict based on provided logs.
   Useful when replaying following processes: calibrationd, paramsd, torqued
@@ -591,14 +605,16 @@ def get_custom_params_from_lr(lr: LogIterable, initial_state: str = "first") -> 
   if len(live_calibration) > 0:
     custom_params["CalibrationParams"] = live_calibration[msg_index].as_builder().to_bytes()
   if len(live_parameters) > 0:
-    custom_params["LiveParametersV2"] = live_parameters[msg_index].as_builder().to_bytes()
+    lp_dict = live_parameters[msg_index].to_dict()
+    lp_dict["carFingerprint"] = CP.carFingerprint
+    custom_params["LiveParameters"] = json.dumps(lp_dict)
   if len(live_torque_parameters) > 0:
     custom_params["LiveTorqueParameters"] = live_torque_parameters[msg_index].as_builder().to_bytes()
 
   return custom_params
 
 
-def replay_process_with_name(name: str | Iterable[str], lr: LogIterable, *args, **kwargs) -> list[capnp._DynamicStructReader]:
+def replay_process_with_name(name: Union[str, Iterable[str]], lr: LogIterable, *args, **kwargs) -> List[capnp._DynamicStructReader]:
   if isinstance(name, str):
     cfgs = [get_process_config(name)]
   elif isinstance(name, Iterable):
@@ -610,16 +626,16 @@ def replay_process_with_name(name: str | Iterable[str], lr: LogIterable, *args, 
 
 
 def replay_process(
-  cfg: ProcessConfig | Iterable[ProcessConfig], lr: LogIterable, frs: dict[str, FrameReader] = None,
-  fingerprint: str = None, return_all_logs: bool = False, custom_params: dict[str, Any] = None,
-  captured_output_store: dict[str, dict[str, str]] = None, disable_progress: bool = False
-) -> list[capnp._DynamicStructReader]:
+  cfg: Union[ProcessConfig, Iterable[ProcessConfig]], lr: LogIterable, frs: Optional[Dict[str, BaseFrameReader]] = None,
+  fingerprint: Optional[str] = None, return_all_logs: bool = False, custom_params: Optional[Dict[str, Any]] = None,
+  captured_output_store: Optional[Dict[str, Dict[str, str]]] = None, disable_progress: bool = False
+) -> List[capnp._DynamicStructReader]:
   if isinstance(cfg, Iterable):
     cfgs = list(cfg)
   else:
     cfgs = [cfg]
 
-  all_msgs = migrate_all(lr,
+  all_msgs = migrate_all(lr, old_logtime=True,
                          manager_states=True,
                          panda_states=any("pandaStates" in cfg.pubs for cfg in cfgs),
                          camera_states=any(len(cfg.vision_pubs) != 0 for cfg in cfgs))
@@ -638,9 +654,9 @@ def replay_process(
 
 
 def _replay_multi_process(
-  cfgs: list[ProcessConfig], lr: LogIterable, frs: dict[str, FrameReader] | None, fingerprint: str | None,
-  custom_params: dict[str, Any] | None, captured_output_store: dict[str, dict[str, str]] | None, disable_progress: bool
-) -> list[capnp._DynamicStructReader]:
+  cfgs: List[ProcessConfig], lr: LogIterable, frs: Optional[Dict[str, BaseFrameReader]], fingerprint: Optional[str],
+  custom_params: Optional[Dict[str, Any]], captured_output_store: Optional[Dict[str, Dict[str, str]]], disable_progress: bool
+) -> List[capnp._DynamicStructReader]:
   if fingerprint is not None:
     params_config = generate_params_config(lr=lr, fingerprint=fingerprint, custom_params=custom_params)
     env_config = generate_environ_config(fingerprint=fingerprint)
@@ -660,8 +676,8 @@ def _replay_multi_process(
 
   all_msgs = sorted(lr, key=lambda msg: msg.logMonoTime)
   log_msgs = []
-  containers = []
   try:
+    containers = []
     for cfg in cfgs:
       container = ProcessContainer(cfg)
       containers.append(container)
@@ -674,10 +690,10 @@ def _replay_multi_process(
 
     pub_msgs = [msg for msg in all_msgs if msg.which() in lr_pubs]
     # external queue for messages taken from logs; internal queue for messages generated by processes, which will be republished
-    external_pub_queue: list[capnp._DynamicStructReader] = pub_msgs.copy()
-    internal_pub_queue: list[capnp._DynamicStructReader] = []
+    external_pub_queue: List[capnp._DynamicStructReader] = pub_msgs.copy()
+    internal_pub_queue: List[capnp._DynamicStructReader] = []
     # heap for maintaining the order of messages generated by processes, where each element: (logMonoTime, index in internal_pub_queue)
-    internal_pub_index_heap: list[tuple[int, int]] = []
+    internal_pub_index_heap: List[Tuple[int, int]] = []
 
     pbar = tqdm(total=len(external_pub_queue), disable=disable_progress)
     while len(external_pub_queue) != 0 or (len(internal_pub_index_heap) != 0 and not all(c.has_empty_queue for c in containers)):
@@ -696,11 +712,6 @@ def _replay_multi_process(
             internal_pub_queue.append(m)
             heapq.heappush(internal_pub_index_heap, (m.logMonoTime, len(internal_pub_queue) - 1))
         log_msgs.extend(output_msgs)
-
-    # flush last set of messages from each process
-    for container in containers:
-      last_time = log_msgs[-1].logMonoTime if len(log_msgs) > 0 else int(time.monotonic() * 1e9)
-      log_msgs.extend(container.get_output_msgs(last_time))
   finally:
     for container in containers:
       container.stop()
@@ -712,7 +723,7 @@ def _replay_multi_process(
   return log_msgs
 
 
-def generate_params_config(lr=None, CP=None, fingerprint=None, custom_params=None) -> dict[str, Any]:
+def generate_params_config(lr=None, CP=None, fingerprint=None, custom_params=None) -> Dict[str, Any]:
   params_dict = {
     "OpenpilotEnabledToggle": True,
     "DisengageOnAccelerator": True,
@@ -728,12 +739,15 @@ def generate_params_config(lr=None, CP=None, fingerprint=None, custom_params=Non
     params_dict["IsRhdDetected"] = is_rhd
 
   if CP is not None:
+    if CP.alternativeExperience == ALTERNATIVE_EXPERIENCE.DISABLE_DISENGAGE_ON_GAS:
+      params_dict["DisengageOnAccelerator"] = False
+
     if fingerprint is None:
       if CP.fingerprintSource == "fw":
         params_dict["CarParamsCache"] = CP.as_builder().to_bytes()
 
     if CP.openpilotLongitudinalControl:
-      params_dict["AlphaLongitudinalEnabled"] = True
+      params_dict["ExperimentalLongitudinalEnabled"] = True
 
     if CP.notCar:
       params_dict["JoystickDebugMode"] = True
@@ -741,9 +755,10 @@ def generate_params_config(lr=None, CP=None, fingerprint=None, custom_params=Non
   return params_dict
 
 
-def generate_environ_config(CP=None, fingerprint=None, log_dir=None) -> dict[str, Any]:
+def generate_environ_config(CP=None, fingerprint=None, log_dir=None) -> Dict[str, Any]:
   environ_dict = {}
-  environ_dict["PARAMS_ROOT"] = f"{Paths.shm_path()}/params"
+  if platform.system() != "Darwin":
+    environ_dict["PARAMS_ROOT"] = "/dev/shm/params"
   if log_dir is not None:
     environ_dict["LOG_ROOT"] = log_dir
 
@@ -774,30 +789,11 @@ def check_openpilot_enabled(msgs: LogIterable) -> bool:
     if msg.which() == "carParams":
       if msg.carParams.notCar:
         return True
-    elif msg.which() == "selfdriveState":
-      if msg.selfdriveState.active:
+    elif msg.which() == "controlsState":
+      if msg.controlsState.active:
         cur_enabled_count += 1
       else:
         cur_enabled_count = 0
       max_enabled_count = max(max_enabled_count, cur_enabled_count)
 
   return max_enabled_count > int(10. / DT_CTRL)
-
-
-def check_most_messages_valid(msgs: LogIterable, threshold: float = 0.9) -> bool:
-  relevant_services = {sock for cfg in CONFIGS for sock in cfg.subs}
-  msgs_counts = Counter(msg.which() for msg in msgs)
-  msgs_valid_counts = Counter(msg.which() for msg in msgs if msg.valid)
-
-  most_valid_for_service = {}
-  for msg_type in msgs_counts.keys():
-    if msg_type not in relevant_services:
-      continue
-
-    valid_share = msgs_valid_counts.get(msg_type, 0) / msgs_counts[msg_type]
-    ok = valid_share >= threshold
-    if not ok:
-      print(f"WARNING: Service {msg_type} has {valid_share * 100:.2f}% valid messages, which is below threshold of {threshold * 100:.2f}%")
-    most_valid_for_service[msg_type] = ok
-
-  return all(most_valid_for_service.values())

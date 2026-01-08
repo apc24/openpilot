@@ -9,7 +9,7 @@ public:
   ~RateKeeper() {}
   bool keepTime();
   bool monitorTime();
-  inline uint64_t frame() const { return frame_; }
+  inline double frame() const { return frame_; }
   inline double remaining() const { return remaining_; }
 
 private:

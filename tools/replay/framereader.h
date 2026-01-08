@@ -1,82 +1,51 @@
 #pragma once
 
+#include <memory>
 #include <string>
 #include <vector>
 
-#include "msgq/visionipc/visionbuf.h"
+#include "cereal/visionipc/visionbuf.h"
 #include "tools/replay/filereader.h"
-#include "tools/replay/util.h"
-
-#ifndef __APPLE__
-#include "tools/replay/qcom_decoder.h"
-#endif
 
 extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 }
 
-class VideoDecoder;
+struct AVFrameDeleter {
+  void operator()(AVFrame* frame) const { av_frame_free(&frame); }
+};
 
 class FrameReader {
 public:
   FrameReader();
   ~FrameReader();
-  bool load(CameraType type, const std::string &url, bool no_hw_decoder = false, std::atomic<bool> *abort = nullptr, bool local_cache = false,
+  bool load(const std::string &url, bool no_hw_decoder = false, std::atomic<bool> *abort = nullptr, bool local_cache = false,
             int chunk_size = -1, int retries = 0);
-  bool loadFromFile(CameraType type, const std::string &file, bool no_hw_decoder = false, std::atomic<bool> *abort = nullptr);
+  bool load(const std::byte *data, size_t size, bool no_hw_decoder = false, std::atomic<bool> *abort = nullptr);
   bool get(int idx, VisionBuf *buf);
-  size_t getFrameCount() const { return packets_info.size(); }
+  int getYUVSize() const { return width * height * 3 / 2; }
+  size_t getFrameCount() const { return packets.size(); }
+  bool valid() const { return valid_; }
 
   int width = 0, height = 0;
-
-  VideoDecoder *decoder_ = nullptr;
-  AVFormatContext *input_ctx = nullptr;
-  int video_stream_idx_ = -1;
-  int prev_idx = -1;
-  struct PacketInfo {
-    int flags;
-    int64_t pos;
-  };
-  std::vector<PacketInfo> packets_info;
-};
-
-
-class VideoDecoder {
-public:
-  virtual ~VideoDecoder() = default;
-  virtual bool open(AVCodecParameters *codecpar, bool hw_decoder) = 0;
-  virtual bool decode(FrameReader *reader, int idx, VisionBuf *buf) = 0;
-  int width = 0, height = 0;
-};
-
-class FFmpegVideoDecoder : public VideoDecoder {
-public:
-  FFmpegVideoDecoder();
-  ~FFmpegVideoDecoder() override;
-  bool open(AVCodecParameters *codecpar, bool hw_decoder) override;
-  bool decode(FrameReader *reader, int idx, VisionBuf *buf) override;
 
 private:
   bool initHardwareDecoder(AVHWDeviceType hw_device_type);
-  AVFrame *decodeFrame(AVPacket *pkt);
-  bool copyBuffer(AVFrame *f, VisionBuf *buf);
+  bool decode(int idx, VisionBuf *buf);
+  AVFrame * decodeFrame(AVPacket *pkt);
+  bool copyBuffers(AVFrame *f, VisionBuf *buf);
 
-  AVFrame *av_frame_, *hw_frame_;
+  std::vector<AVPacket*> packets;
+  std::unique_ptr<AVFrame, AVFrameDeleter>av_frame_, hw_frame;
+  AVFormatContext *input_ctx = nullptr;
   AVCodecContext *decoder_ctx = nullptr;
+  int key_frames_count_ = 0;
+  bool valid_ = false;
+  AVIOContext *avio_ctx_ = nullptr;
+
   AVPixelFormat hw_pix_fmt = AV_PIX_FMT_NONE;
   AVBufferRef *hw_device_ctx = nullptr;
+  int prev_idx = -1;
+  inline static std::atomic<bool> has_hw_decoder = true;
 };
-
-#ifndef __APPLE__
-class QcomVideoDecoder : public VideoDecoder {
-public:
-  QcomVideoDecoder() {};
-  ~QcomVideoDecoder() override {};
-  bool open(AVCodecParameters *codecpar, bool hw_decoder) override;
-  bool decode(FrameReader *reader, int idx, VisionBuf *buf) override;
-
-private:
-  MsmVidc msm_vidc = MsmVidc();
-};
-#endif

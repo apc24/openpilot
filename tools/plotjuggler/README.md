@@ -12,18 +12,21 @@ Once you've [set up the openpilot environment](../README.md), this command will 
 
 ```
 $ ./juggle.py -h
-usage: juggle.py [-h] [--demo] [--can] [--stream] [--layout [LAYOUT]] [--install] [--dbc DBC]
-                 [route_or_segment_name]
+usage: juggle.py [-h] [--demo] [--qlog] [--ci] [--can] [--stream] [--layout [LAYOUT]] [--install] [--dbc DBC]
+                 [route_or_segment_name] [segment_count]
 
 A helper to run PlotJuggler on openpilot routes
 
 positional arguments:
   route_or_segment_name
                         The route or segment name to plot (cabana share URL accepted) (default: None)
+  segment_count         The number of segments to plot (default: None)
 
 optional arguments:
   -h, --help            show this help message and exit
   --demo                Use the demo route instead of providing one (default: False)
+  --qlog                Use qlogs (default: False)
+  --ci                  Download data from openpilot CI bucket (default: False)
   --can                 Parse CAN data (default: False)
   --stream              Start PlotJuggler in streaming mode (default: False)
   --layout [LAYOUT]     Run PlotJuggler with a pre-defined layout (default: None)
@@ -33,19 +36,13 @@ optional arguments:
 
 ```
 
-Example using route name:
+Examples using route name:
 
-`./juggle.py "a2a0ccea32023010/2023-07-27--13-01-19"`
+`./juggle.py "a2a0ccea32023010|2023-07-27--13-01-19"`
 
-Examples using segment:
+Examples using segment name:
 
-`./juggle.py "a2a0ccea32023010/2023-07-27--13-01-19/1"`
-
-`./juggle.py "a2a0ccea32023010/2023-07-27--13-01-19/1/q" # use qlogs`
-
-Example using segment range:
-
-`./juggle.py "a2a0ccea32023010/2023-07-27--13-01-19/0:1"`
+`./juggle.py "a2a0ccea32023010|2023-07-27--13-01-19--1"`
 
 ## Streaming
 
@@ -61,7 +58,7 @@ If streaming to PlotJuggler from a replay on your PC, simply run: `./juggle.py -
 
 For a quick demo, go through the installation step and run this command:
 
-`./juggle.py --demo --layout=layouts/tuning.xml`
+`./juggle.py --demo --qlog --layout=layouts/demo.xml`
 
 ## Layouts
 
