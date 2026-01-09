@@ -16,11 +16,6 @@ QString get_mapbox_token() {
   return MAPBOX_TOKEN.isEmpty() ? CommaApi::create_jwt({}, 4 * 7 * 24 * 3600) : MAPBOX_TOKEN;
 }
 
-QString get_maptiler_token() {
-  return MAPTILER_TOKEN.isEmpty() ? CommaApi::create_jwt({}, 4 * 7 * 24 * 3600) : MAPTILER_TOKEN;
-}
-
-
 QMapLibre::Settings get_mapbox_settings() {
   QMapLibre::Settings settings;
   settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapboxProvider);
@@ -34,21 +29,6 @@ QMapLibre::Settings get_mapbox_settings() {
 
   return settings;
 }
-
-QMapLibre::Settings get_maptiler_settings() {
-  QMapLibre::Settings settings;
-  settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapTilerProvider);
-
-  if (!Hardware::PC()) {
-    settings.setCacheDatabasePath(MAPS_CACHE_PATH);
-    settings.setCacheDatabaseMaximumSize(100 * 1024 * 1024);
-  }
-  settings.setApiBaseUrl(MAPTILER_HOST);
-  settings.setApiKey(get_maptiler_token());
-
-  return settings;
-}
-
 
 QGeoCoordinate to_QGeoCoordinate(const QMapLibre::Coordinate &in) {
   return QGeoCoordinate(in.first, in.second);

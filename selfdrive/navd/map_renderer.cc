@@ -296,12 +296,9 @@ extern "C" {
     assert(app);
 
     QMapLibre::Settings settings;
-//    settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapboxProvider);
-    settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapTilerProvider); // MapTiler is the default provider
-//    settings.setApiBaseUrl(maps_host == nullptr ? MAPS_HOST : maps_host);
-    settings.setApiBaseUrl(maps_host == nullptr ? MAPTILER_HOST : maps_host);
-//    settings.setApiKey(token == nullptr ? get_mapbox_token() : token);
-    settings.setApiKey(token == nullptr ? get_maptiler_token() : token);
+    settings.setProviderTemplate(QMapLibre::Settings::ProviderTemplate::MapboxProvider);
+    settings.setApiBaseUrl(maps_host == nullptr ? MAPS_HOST : maps_host);
+    settings.setApiKey(token == nullptr ? get_mapbox_token() : token);
 
     return new MapRenderer(settings, false);
   }

@@ -108,10 +108,8 @@ void OnroadWindow::mousePressEvent(QMouseEvent* e) {
 void OnroadWindow::offroadTransition(bool offroad) {
 #ifdef ENABLE_MAPS
   if (!offroad) {
-//    if (map == nullptr && (uiState()->hasPrime() || !MAPBOX_TOKEN.isEmpty())) {
-//      auto m = new MapPanel(get_mapbox_settings());
-    if (map == nullptr && (uiState()->hasPrime() || !MAPTILER_TOKEN.isEmpty())) {
-      auto m = new MapPanel(get_maptiler_settings());
+    if (map == nullptr && (uiState()->hasPrime() || !MAPBOX_TOKEN.isEmpty())) {
+      auto m = new MapPanel(get_mapbox_settings());
       map = m;
 
       QObject::connect(m, &MapPanel::mapPanelRequested, this, &OnroadWindow::mapPanelRequested);
@@ -132,8 +130,7 @@ void OnroadWindow::offroadTransition(bool offroad) {
 
 void OnroadWindow::primeChanged(bool prime) {
 #ifdef ENABLE_MAPS
-//  if (map && (!prime && MAPBOX_TOKEN.isEmpty())) {
-  if (map && (!prime && MAPTILER_TOKEN.isEmpty())) {
+  if (map && (!prime && MAPBOX_TOKEN.isEmpty())) {
     nvg->map_settings_btn->setEnabled(false);
     nvg->map_settings_btn->setVisible(false);
     map->deleteLater();
