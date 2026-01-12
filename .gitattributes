@@ -1,9 +1,7 @@
 * text=auto
-
 # to move existing files into LFS:
 # git add --renormalize .
 *.dlc filter=lfs diff=lfs merge=lfs -text
-*.onnx filter=lfs diff=lfs merge=lfs -text
 *.svg filter=lfs diff=lfs merge=lfs -text
 *.png filter=lfs diff=lfs merge=lfs -text
 *.gif filter=lfs diff=lfs merge=lfs -text
@@ -81,6 +79,8 @@ selfdrive/controls/lib/lead_mpc_lib/lib_mpc_export/**/* filter=lfs diff=lfs merg
 selfdrive/controls/lib/longitudinal_mpc/lib_mpc_export/**/* filter=lfs diff=lfs merge=lfs -text
 selfdrive/controls/lib/lateral_mpc/mpc_export/**/* filter=lfs diff=lfs merge=lfs -text
 third_party/curl/**/* filter=lfs diff=lfs merge=lfs -text
+selfdrive/modeld/models/dmonitoring_model.onnx filter=lfs diff=lfs merge=lfs -text
+selfdrive/modeld/models/navmodel.onnx filter=lfs diff=lfs merge=lfs -text
 selfdrive/modeld/thneed/debug/**/* filter=lfs diff=lfs merge=lfs -text
 selfdrive/modeld/thneed/include/**/* filter=lfs diff=lfs merge=lfs -text
 third_party/openmax/**/* filter=lfs diff=lfs merge=lfs -text
@@ -90,3 +90,5 @@ Pipfile filter=lfs diff=lfs merge=lfs -text
 Pipfile.lock filter=lfs diff=lfs merge=lfs -text
 poetry.lock filter=lfs diff=lfs merge=lfs -text
 *.qm filter=lfs diff=lfs merge=lfs -text
+selfdrive/modeld/models/supercombo.onnx !text !filter !merge !diff
+selfdrive/modeld/models/supercombo_old.onnx !text !filter !merge !diff
