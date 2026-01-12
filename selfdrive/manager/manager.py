@@ -149,7 +149,7 @@ def manager_thread() -> None:
     # liveCalibrationのcalStatusを確認
     if (
         "modeld" not in ignore and
-        sm['liveCalibration'].valid and
+        sm.all_alive(['liveCalibration']) and
         sm['liveCalibration'].calStatus == log.LiveCalibrationData.Status.calibrated
     ):
       cloudlog.info("Calibration complete. Stopping modeld...")
