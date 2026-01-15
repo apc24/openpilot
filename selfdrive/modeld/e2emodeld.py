@@ -1383,6 +1383,16 @@ def main(demo=False):
     # フレームIDの更新（次回のフレームドロップ検出用）
     last_vipc_frame_id = meta_main.frame_id
 
+    # カメラストリームの解像度を取得
+    if vipc_client_main.connect(False):
+        frame = vipc_client_main.recv()
+        if frame is not None:
+            print(f"Camera resolution: {frame.width}x{frame.height}")
+        else:
+            print("No frame received from the camera.")
+    else:
+        print("Failed to connect to the camera stream.")
+
 
 # ===== メイン実行部 =====
 if __name__ == "__main__":
