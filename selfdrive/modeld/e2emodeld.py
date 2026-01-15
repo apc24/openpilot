@@ -159,6 +159,29 @@ def process_camera_frame(buf: VisionBuf, transform_matrix: np.ndarray, save_debu
     # YUV420: Y(輝度) + U/V(色差)が縦方向に1.5倍のサイズで格納
     yuv_img = np.frombuffer(buf.data, dtype=np.uint8).reshape((buf.height + buf.height//2, buf.width))
     
+    # デバッグ情報を追加
+    import logging
+
+    logging.basicConfig(level=logging.DEBUG)
+
+    # VisionIpcClientの初期化デバッグ
+    if vipc_client_main is None:
+        logging.error("vipc_client_main is None. Failed to initialize VisionIpcClient.")
+        raise RuntimeError("Failed to initialize vipc_client_main")
+
+    # データサイズの確認
+    logging.debug(f"Buffer size: {len(buf.data)}, Expected size: {(buf.height + buf.height // 2) * buf.width}")
+    logging.debug(f"Height: {buf.height}, Width: {buf.width}")
+
+    # リシェイプ処理
+    try:
+        yuv_img = np.frombuffer(buf.data, dtype=np.uint8).reshape((buf.height + buf.height // 2, buf.width))
+        logging.debug(f"YUV image reshaped successfully: {yuv_img.shape}")
+    except ValueError as e:
+        logging.error(f"Error reshaping buffer: {e}")
+        logging.error(f"Buffer size: {len(buf.data)}, Expected size: {(buf.height + buf.height // 2) * buf.width}")
+        raise
+    
     # Step 2: YUV420をRGBに変換（OpenCVを使用）
     rgb_img = cv2.cvtColor(yuv_img, cv2.COLOR_YUV2RGB_I420)
     
@@ -1387,6 +1410,16 @@ def main(demo=False):
     if vipc_client_main.connect(False):
         frame = vipc_client_main.recv()
         if frame is not None:
+            # 解像度の検証とリサイズ
+            expected_width = 1928
+            expected_height = 1812
+
+            if frame.width != expected_width or frame.height != expected_height:
+                print(f"Warning: Unexpected resolution {frame.width}x{frame.height}. Resizing to {expected_width}x{expected_height}.")
+                resized_frame = cv2.resize(frame.data, (expected_width, expected_height))
+            else:
+                resized_frame = frame.data
+
             print(f"Camera resolution: {frame.width}x{frame.height}")
         else:
             print("No frame received from the camera.")
