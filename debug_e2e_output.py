@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 """
 E2E（End-to-End）モデル出力監視ツール
 

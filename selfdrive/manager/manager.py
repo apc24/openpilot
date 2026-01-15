@@ -128,6 +128,7 @@ def manager_thread() -> None:
     ignore.append("pandad")
   ignore += [x for x in os.getenv("BLOCK", "").split(",") if len(x) > 0]
 
+  # sm = messaging.SubMaster(['deviceState', 'carParams'], poll='deviceState')
   sm = messaging.SubMaster(['deviceState', 'carParams', 'liveCalibration'], poll='deviceState')
   pm = messaging.PubMaster(['managerState'])
 
@@ -146,16 +147,15 @@ def manager_thread() -> None:
     elif not started and started_prev:
       params.clear_all(ParamKeyType.CLEAR_ON_OFFROAD_TRANSITION)
 
-    # liveCalibrationのcalStatusを確認
+    #liveCalibrationのcalstatusを確認
     if (
-        "modeld" not in ignore and
-        sm.all_alive(['liveCalibration']) and
-        sm['liveCalibration'].calStatus == log.LiveCalibrationData.Status.calibrated
+      "modeld" not in ignore and
+      sm['liveCalibration'].valid and
+      sm['liveCalibration'].calStatus == log.LiveCalibrationData.Status.calibrated
     ):
       cloudlog.info("Calibration complete. Stopping modeld...")
-      ignore.append("modeld")
-
-      # modeld プロセスを同期的に停止
+      ignore.append("modeld")  # modeldを停止する
+      #modeldプロセスを同期的に停止
       modeld_process = managed_processes.get("modeld")
       if modeld_process is not None:
           modeld_process.stop(block=True)
