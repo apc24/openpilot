@@ -76,6 +76,15 @@ def run(cmd: List[str], cwd: Optional[str] = None) -> str:
   return subprocess.check_output(cmd, cwd=cwd, stderr=subprocess.STDOUT, encoding='utf8')
 
 
+def safe_remove_dir(path):
+  # /data/site-packagesは消さない
+  if os.path.abspath(path) == '/data/site-packages':
+    cloudlog.info('Skip removing protected path: /data/site-packages')
+    return
+  if os.path.isdir(path):
+    shutil.rmtree(path)
+
+
 def set_consistent_flag(consistent: bool) -> None:
   os.sync()
   consistent_file = Path(os.path.join(FINALIZED, ".overlay_consistent"))
@@ -148,7 +157,8 @@ def init_overlay() -> None:
   dismount_overlay()
   run(["sudo", "rm", "-rf", STAGING_ROOT])
   if os.path.isdir(STAGING_ROOT):
-    shutil.rmtree(STAGING_ROOT)
+    # shutil.rmtree(STAGING_ROOT)
+    safe_remove_dir(STAGING_ROOT)
 
   for dirname in [STAGING_ROOT, OVERLAY_UPPER, OVERLAY_METADATA, OVERLAY_MERGED]:
     os.mkdir(dirname, 0o755)
@@ -188,7 +198,8 @@ def finalize_update() -> None:
 
   # Copy the merged overlay view and set the update ready flag
   if os.path.exists(FINALIZED):
-    shutil.rmtree(FINALIZED)
+    # shutil.rmtree(FINALIZED)
+    safe_remove_dir(FINALIZED)
   shutil.copytree(OVERLAY_MERGED, FINALIZED, symlinks=True)
 
   run(["git", "reset", "--hard"], FINALIZED)
