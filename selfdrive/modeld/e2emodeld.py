@@ -99,6 +99,9 @@ def process_camera_frame(buf: VisionBuf) -> np.ndarray:
             return np.zeros((3, IMAGE_SIZE, IMAGE_SIZE), dtype=np.float32)
 
         # YUV420: Y(�P�x) + U/V(�F��)���c������1.5�{�̃T�C�Y�Ŋi�[
+        print("buf.width =", buf.width)
+        print("buf.height =", buf.height)
+        print("len(buf.data) =", len(buf.data))
         yuv_img = np.frombuffer(buf.data, dtype=np.uint8).reshape(
             (buf.height + buf.height // 2, buf.width)
         )
@@ -244,7 +247,7 @@ def main(demo=False):
     sentry.set_tag("daemon", PROCESS_NAME)  # Sentry�G���[�ǐ՗p�^�O�ݒ�
     cloudlog.bind(daemon=PROCESS_NAME)  # ���O�Ƀv���Z�X�����o�C���h
     setproctitle(PROCESS_NAME)  # �v���Z�X����ݒ�ips�R�}���h�Ŋm�F�\�j
-    config_realtime_process(7, 54)  # ���A���^�C���v���Z�X�ݒ�i�D��x7�ACPU54�ԁj
+    config_realtime_process(6, 53)  # ���A���^�C���v���Z�X�ݒ�i�D��x7�ACPU54�ԁj
 
     # ===== OpenCL�R���e�L�X�g��E2E���f���̏����� =====
     try:

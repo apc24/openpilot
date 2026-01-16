@@ -154,11 +154,11 @@ def manager_thread() -> None:
       sm['liveCalibration'].calStatus == log.LiveCalibrationData.Status.calibrated
     ):
       cloudlog.info("Calibration complete. Stopping modeld...")
-      ignore.append("modeld")  # modeldを停止する
+      #ignore.append("modeld")  # modeldを停止する
       #modeldプロセスを同期的に停止
-      modeld_process = managed_processes.get("modeld")
-      if modeld_process is not None:
-          modeld_process.stop(block=True)
+      # modeld_process = managed_processes.get("modeld")
+      # if modeld_process is not None:
+      #     modeld_process.stop(block=True)
 
     # update onroad params, which drives boardd's safety setter thread
     if started != started_prev:

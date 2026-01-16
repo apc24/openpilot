@@ -76,13 +76,13 @@ def run(cmd: List[str], cwd: Optional[str] = None) -> str:
   return subprocess.check_output(cmd, cwd=cwd, stderr=subprocess.STDOUT, encoding='utf8')
 
 
-def safe_remove_dir(path):
-  # /data/site-packagesは消さない
-  if os.path.abspath(path) == '/data/site-packages':
-    cloudlog.info('Skip removing protected path: /data/site-packages')
-    return
-  if os.path.isdir(path):
-    shutil.rmtree(path)
+# def safe_remove_dir(path):
+#   # /data/site-packagesは消さない
+#   if os.path.abspath(path) == '/data/site-packages':
+#     cloudlog.info('Skip removing protected path: /data/site-packages')
+#     return
+#   if os.path.isdir(path):
+#     shutil.rmtree(path)
 
 
 def set_consistent_flag(consistent: bool) -> None:
