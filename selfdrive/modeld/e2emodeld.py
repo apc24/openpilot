@@ -157,7 +157,7 @@ def process_camera_frame(buf: VisionBuf, transform_matrix: np.ndarray, save_debu
     
     # Step 1: VisionBufの画像データを取得 (YUV420形式)
     # YUV420: Y(輝度) + U/V(色差)が縦方向に1.5倍のサイズで格納
-    yuv_img = np.frombuffer(buf.data, dtype=np.uint8).reshape((buf.height + buf.height//2, buf.width))
+#    yuv_img = np.frombuffer(buf.data, dtype=np.uint8).reshape((buf.height + buf.height//2, buf.width))
     
     # デバッグ情報を追加
     import logging
