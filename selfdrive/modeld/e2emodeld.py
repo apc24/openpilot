@@ -37,10 +37,7 @@ SEND_E2E_OUTPUT = os.getenv(
 # �J�X�^���w�K�ς�E2E���f���̃p�X�ݒ�
 MODEL_PATHS = {
     ModelRunner.ONNX: Path(__file__).parent
-    # / "models/e2e_model.onnx"  # �W��ONNX�Łi�t�H�[���o�b�N�j
-    # / "models/checkpoint_epoch_57_best.onnx"  # v2.1 Transformer
-    / "models/checkpoint_epoch_90_best.onnx"  # v2.1 LSTM
-
+    / "models/checkpoint_epoch_19_best.onnx"  # v1.0
 }
 
 E2E_MODEL_FREQ = 10.0  # 10Hz
