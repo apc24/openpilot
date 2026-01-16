@@ -50,6 +50,9 @@ PROCESS_NAME = "selfdrive.modeld.e2emodeld"
 SEND_RAW_PRED = os.getenv('SEND_RAW_PRED')                    # デバッグ用: 生の予測値送信フラグ
 SEND_E2E_OUTPUT = os.getenv('SEND_E2E_OUTPUT', '1')          # E2E出力を常に送信（デフォルト有効）
 
+# VisionIpcClientのグローバル初期化
+vipc_client_main = None
+
 # ===== モデルファイルパス設定 =====
 # カスタム学習済みE2Eモデルのパス設定（epoch 19 最新版）
 MODEL_PATHS = {
@@ -856,8 +859,8 @@ def main(demo=False):
                                 else VisionStreamType.VISION_STREAM_ROAD)
       cloudlog.warning(f"🔍 CONNECTION DEBUG: Creating VisionIpcClient for main stream: {vipc_client_main_stream}")
       vipc_client_main = VisionIpcClient("camerad", vipc_client_main_stream, True, cl_context)
+      cloudlog.info("[2] vipc_client_main initialized")
       vipc_client_extra = VisionIpcClient("camerad", VisionStreamType.VISION_STREAM_WIDE_ROAD, False, cl_context)
-      
       cloudlog.warning(f"📷 Vision config: main_wide_camera={main_wide_camera}, use_extra_client={use_extra_client}")
 
       # メインカメラ接続の詳細確認
