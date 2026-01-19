@@ -55,7 +55,7 @@ procs = [
   NativeProcess("encoderd", "system/loggerd", ["./encoderd"], only_onroad),
   NativeProcess("stream_encoderd", "system/loggerd", ["./encoderd", "--stream"], notcar),
   NativeProcess("loggerd", "system/loggerd", ["./loggerd"], logging),
-  NativeProcess("modeld", "selfdrive/modeld", ["./modeld"], only_onroad),
+  #sNativeProcess("modeld", "selfdrive/modeld", ["./modeld"], only_onroad),
   # 内製E2Eモデル結合のため、e2emodeldを追加（標準modeldと排他動作）
   NativeProcess("e2emodeld", "selfdrive/modeld", ["./e2emodeld"], only_onroad),
   NativeProcess("mapsd", "selfdrive/navd", ["./mapsd"], only_onroad),
