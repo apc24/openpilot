@@ -51,7 +51,7 @@ SEND_E2E_OUTPUT = os.getenv('SEND_E2E_OUTPUT', '1')          # E2E出力を常�
 # ===== モデルファイルパス設定 =====
 # カスタム学習済みE2Eモデルのパス設定（epoch 19 最新版）
 MODEL_PATHS = {
-  ModelRunner.THNEED: Path(__file__).parent / 'models/checkpoint_epoch_19_best.thneed',  # GPU最適化版（利用可能な場合）
+#  ModelRunner.THNEED: Path(__file__).parent / 'models/checkpoint_epoch_19_best.thneed',  # GPU最適化版（利用可能な場合）
   ModelRunner.ONNX: Path(__file__).parent / 'models/checkpoint_epoch_19_best.onnx'       # 標準ONNX版
 }
 
@@ -158,7 +158,9 @@ def process_camera_frame(buf: VisionBuf, transform_matrix: np.ndarray) -> np.nda
     print("buf.width =", buf.width)
     print("buf.height =", buf.height)
     print("len(buf.data) =", len(buf.data))
-    yuv_img = np.frombuffer(buf.data, dtype=np.uint8).reshape((buf.height + buf.height//2, buf.width))
+    # buf.data, buf.width, buf.height からreshapeサイズを自動計算
+    yuv_height = len(buf.data) // buf.width
+    yuv_img = np.frombuffer(buf.data, dtype=np.uint8).reshape((yuv_height, buf.width))
     
     # Step 2: YUV420をRGBに変換（OpenCVを使用）
     rgb_img = cv2.cvtColor(yuv_img, cv2.COLOR_YUV2RGB_I420)
