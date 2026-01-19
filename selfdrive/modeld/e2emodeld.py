@@ -154,16 +154,21 @@ def process_camera_frame(buf: VisionBuf, transform_matrix: np.ndarray) -> np.nda
       return np.zeros((1, 3, IMAGE_SIZE, IMAGE_SIZE), dtype=np.float32)
     
     # Step 1: VisionBufの画像データを取得 (YUV420形式)
-    # YUV420: Y(輝度) + U/V(色差)が縦方向に1.5倍のサイズで格納
-    print("buf.width =", buf.width)
-    print("buf.height =", buf.height)
-    print("len(buf.data) =", len(buf.data))
-    # buf.data, buf.width, buf.height からreshapeサイズを自動計算
-    yuv_height = len(buf.data) // buf.width
-    yuv_img = np.frombuffer(buf.data, dtype=np.uint8).reshape((yuv_height, buf.width))
+    # YUV420: Y(輝度)が全画素、U/V(色差)が各1/4画素分ずつ（Y平面＋U平面＋V平面の順で、合計高さは1.5倍）
+    arr = np.array(buf.data, dtype=np.uint8, copy=True)
+    valid_size = buf.height * buf.width * 2
+    valid_arr = arr[:valid_size]
+    yuv_img = valid_arr.reshape((buf.height, buf.width, 2))
+
+    # buf.data, buf.width, buf.height からreshapeサイズを自動計算　#sim
+#    yuv_height = len(buf.data) // buf.width
+#    yuv_img = np.frombuffer(buf.data, dtype=np.uint8).reshape((yuv_height, buf.width))
     
     # Step 2: YUV420をRGBに変換（OpenCVを使用）
-    rgb_img = cv2.cvtColor(yuv_img, cv2.COLOR_YUV2RGB_I420)
+    # rgb_img = cv2.cvtColor(yuv_img, cv2.COLOR_YUV2RGB_I420) #sim
+    # rgb_img = cv2.cvtColor(yuv_img, cv2.COLOR_YUV2RGB_UYVY) #実機
+    rgb_img = cv2.cvtColor(yuv_img, cv2.COLOR_YUV2RGB_YUY2)   #実機
+
     
     # Step 3: 画像のリサイズ (元解像度 → 224x224)
     resized_img = cv2.resize(rgb_img, (IMAGE_SIZE, IMAGE_SIZE), interpolation=cv2.INTER_LINEAR)
