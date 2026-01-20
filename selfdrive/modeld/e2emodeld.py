@@ -181,6 +181,21 @@ def process_camera_frame(buf: VisionBuf, transform_matrix: np.ndarray) -> np.nda
 
     # Step 3: 画像のリサイズ (元解像度 → 224x224)
     resized_img = cv2.resize(rgb_img, (IMAGE_SIZE, IMAGE_SIZE), interpolation=cv2.INTER_LINEAR)
+
+    # --- デバッグ: 最初の10フレームだけ保存 ---
+    debug_dir = './debug_frames'
+    if not hasattr(process_camera_frame, 'save_count'):
+      process_camera_frame.save_count = 0
+    if process_camera_frame.save_count < 10:
+      import os
+      os.makedirs(debug_dir, exist_ok=True)
+      fname = os.path.join(debug_dir, f'frame_{process_camera_frame.save_count:02d}.png')
+      try:
+        cv2.imwrite(fname, resized_img)
+        cloudlog.warning(f"Saved debug frame: {fname}")
+      except Exception as e:
+        cloudlog.error(f"Failed to save debug frame: {e}")
+      process_camera_frame.save_count += 1
     
     # Step 4: [0, 255] → [0, 1] 正規化
     normalized_img = resized_img.astype(np.float32) / 255.0
