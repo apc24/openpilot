@@ -6,7 +6,7 @@ E2E (End-to-End) 自動運転モデル実行デーモン
 import os
 import time
 import numpy as np
-import cv2
+# import cv2
 from cereal import car
 from pathlib import Path
 from typing import Dict, List, Optional
