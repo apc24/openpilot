@@ -1,9 +1,7 @@
 * text=auto
-
 # to move existing files into LFS:
 # git add --renormalize .
 *.dlc filter=lfs diff=lfs merge=lfs -text
-*.onnx filter=lfs diff=lfs merge=lfs -text
 *.svg filter=lfs diff=lfs merge=lfs -text
 *.png filter=lfs diff=lfs merge=lfs -text
 *.gif filter=lfs diff=lfs merge=lfs -text
@@ -90,3 +88,4 @@ Pipfile filter=lfs diff=lfs merge=lfs -text
 Pipfile.lock filter=lfs diff=lfs merge=lfs -text
 poetry.lock filter=lfs diff=lfs merge=lfs -text
 *.qm filter=lfs diff=lfs merge=lfs -text
+*.onnx filter=lfs diff=lfs merge=lfs -text
