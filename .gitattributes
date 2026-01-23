@@ -85,5 +85,4 @@ Pipfile filter=lfs diff=lfs merge=lfs -text
 Pipfile.lock filter=lfs diff=lfs merge=lfs -text
 poetry.lock filter=lfs diff=lfs merge=lfs -text
 *.qm filter=lfs diff=lfs merge=lfs -text
-apk/ai.comma.plus.offroad.apk filter=lfs diff=lfs merge=lfs -text
 *.onnx filter=lfs diff=lfs merge=lfs -text
