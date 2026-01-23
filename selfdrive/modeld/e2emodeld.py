@@ -246,7 +246,7 @@ def main(demo=False):
     sentry.set_tag("daemon", PROCESS_NAME)  # Sentryエラー追跡用タグ設定
     cloudlog.bind(daemon=PROCESS_NAME)  # ログにプロセス名をバインド
     setproctitle(PROCESS_NAME)  # プロセス名を設定（psコマンドで確認可能）
-    config_realtime_process(7, 54)  # リアルタイムプロセス設定（優先度7、CPU54番）
+    config_realtime_process(7, 54)  # リアルタイムプロセス設定（CPU7番、優先度54）
 
     # ===== OpenCLコンテキストとE2Eモデルの初期化 =====
     try:
@@ -384,12 +384,12 @@ def main(demo=False):
         current_time = time.monotonic()
         loop_count += 1
 
-        if loop_count % 100 == 1:
-            with open("/tmp/e2e_car_state_debug.log", "a") as f:
-                import time as time_module
-
-                f.write(f"{time_module.time()}: Main loop iteration {loop_count}\n")
-                f.flush()
+        # if loop_count % 100 == 1:
+        #     with open("/tmp/e2e_car_state_debug.log", "a") as f:
+        #         import time as time_module
+        #
+        #         f.write(f"{time_module.time()}: Main loop iteration {loop_count}\n")
+        #         f.flush()
 
         # E2E更新頻度制御
         if current_time - last_e2e_update_time < e2e_update_interval:
