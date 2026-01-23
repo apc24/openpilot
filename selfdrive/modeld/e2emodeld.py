@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 from setproctitle import setproctitle
 from cereal.messaging import PubMaster, SubMaster
-# from cereal.visionipc import VisionIpcClient, VisionStreamType, VisionBuf
+from cereal.visionipc import VisionIpcClient, VisionStreamType, VisionBuf
 import onnxruntime as ort
 from openpilot.common.swaglog import cloudlog
 from openpilot.common.params import Params
