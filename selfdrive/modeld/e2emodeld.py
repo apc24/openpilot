@@ -31,7 +31,7 @@ PROCESS_NAME = "selfdrive.modeld.e2emodeld"
 SEND_RAW_PRED = os.getenv("SEND_RAW_PRED")  # デバッグ用: 生の予測値送信フラグ
 SEND_E2E_OUTPUT = os.getenv(
     "SEND_E2E_OUTPUT", "1"
-)  # E2E出力を常に送信（デフォルト有効）
+)  # E2E出力を常に送信（デフォルト有効） 
 
 # ===== モデルファイルパス設定 =====
 # カスタム学習済みE2Eモデルのパス設定
