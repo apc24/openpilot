@@ -35,13 +35,13 @@ SEND_E2E_OUTPUT = os.getenv(
 
 # ===== モデルファイルパス設定 =====
 # カスタム学習済みE2Eモデルのパス設定
-# MODEL_PATHS = {
-#     ModelRunner.ONNX: Path(__file__).parent
-#     # / "models/checkpoint_epoch_57_best.onnx"  # v2.1 Transformer
-#     # / "models/checkpoint_epoch_90_best.onnx"  # v2.1 LSTM
-#     / "models/v2.2_lstm.onnx"  # v2.2 LSTM
+MODEL_PATHS = {
+    ModelRunner.ONNX: Path(__file__).parent
+    # / "models/checkpoint_epoch_57_best.onnx"  # v2.1 Transformer
+    # / "models/checkpoint_epoch_90_best.onnx"  # v2.1 LSTM
+    / "models/v2.2_lstm.onnx"  # v2.2 LSTM
 
-# }
+}
 
 E2E_MODEL_FREQ = 10.0  # 10Hz
 IMAGE_SIZE = 224
@@ -246,7 +246,7 @@ def main(demo=False):
     sentry.set_tag("daemon", PROCESS_NAME)  # Sentryエラー追跡用タグ設定
     cloudlog.bind(daemon=PROCESS_NAME)  # ログにプロセス名をバインド
     setproctitle(PROCESS_NAME)  # プロセス名を設定（psコマンドで確認可能）
-    config_realtime_process(7, 54)  # リアルタイムプロセス設定（CPU7番、優先度54）
+    config_realtime_process(5, 54)  # リアルタイムプロセス設定（CPU7番、優先度54）
 
     # ===== OpenCLコンテキストとE2Eモデルの初期化 =====
     try:
