@@ -35,13 +35,13 @@ SEND_E2E_OUTPUT = os.getenv(
 
 # ===== モデルファイルパス設定 =====
 # カスタム学習済みE2Eモデルのパス設定
-MODEL_PATHS = {
-    ModelRunner.ONNX: Path(__file__).parent
-    # / "models/checkpoint_epoch_57_best.onnx"  # v2.1 Transformer
-    # / "models/checkpoint_epoch_90_best.onnx"  # v2.1 LSTM
-    / "models/v2.2_lstm.onnx"  # v2.2 LSTM
+# MODEL_PATHS = {
+#     ModelRunner.ONNX: Path(__file__).parent
+#     # / "models/checkpoint_epoch_57_best.onnx"  # v2.1 Transformer
+#     # / "models/checkpoint_epoch_90_best.onnx"  # v2.1 LSTM
+#     / "models/v2.2_lstm.onnx"  # v2.2 LSTM
 
-}
+# }
 
 E2E_MODEL_FREQ = 10.0  # 10Hz
 IMAGE_SIZE = 224
