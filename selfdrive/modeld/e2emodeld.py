@@ -483,13 +483,13 @@ def main(demo=False):
         #         print("❌ carState message is None!", flush=True)
 
             # ファイルログにも記録
-            with open("/tmp/e2e_carstate_message_debug.log", "a") as f:
-                import time as time_module
+            # with open("/tmp/e2e_carstate_message_debug.log", "a") as f:
+            #     import time as time_module
 
-                f.write(
-                    f"{time_module.time()}: CarState Message - Valid:{car_state_valid}, Updated:{car_state_updated}, Type:{type(car_state_msg).__name__}\n"
-                )
-                f.flush()
+            #     f.write(
+            #         f"{time_module.time()}: CarState Message - Valid:{car_state_valid}, Updated:{car_state_updated}, Type:{type(car_state_msg).__name__}\n"
+            #     )
+            #     f.flush()
 
         # except Exception as debug_error:
         #     print(f"❌ CAR STATE MESSAGE DEBUG ERROR: {debug_error}", flush=True)
