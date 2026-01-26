@@ -246,7 +246,7 @@ def main(demo=False):
     sentry.set_tag("daemon", PROCESS_NAME)  # Sentryエラー追跡用タグ設定
     cloudlog.bind(daemon=PROCESS_NAME)  # ログにプロセス名をバインド
     setproctitle(PROCESS_NAME)  # プロセス名を設定（psコマンドで確認可能）
-    config_realtime_process(5, 54)  # リアルタイムプロセス設定（CPU7番、優先度54）
+    config_realtime_process(7, 54)  # リアルタイムプロセス設定（CPU7番、優先度54）
 
     # ===== OpenCLコンテキストとE2Eモデルの初期化 =====
     try:
