@@ -57,7 +57,7 @@ procs = [
   NativeProcess("loggerd", "system/loggerd", ["./loggerd"], logging),
   NativeProcess("modeld", "selfdrive/modeld", ["./modeld"], only_onroad),
   #e2emodeld追加
-  NativeProcess("e2emodeld", "selfdrive/modeld", ["./e2emodeld"], only_onroad),
+  # NativeProcess("e2emodeld", "selfdrive/modeld", ["./e2emodeld"], only_onroad),
   NativeProcess("mapsd", "selfdrive/navd", ["./mapsd"], only_onroad),
   PythonProcess("navmodeld", "selfdrive.modeld.navmodeld", only_onroad),
   NativeProcess("sensord", "system/sensord", ["./sensord"], only_onroad, enabled=not PC),
