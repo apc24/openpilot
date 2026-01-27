@@ -393,7 +393,8 @@ def main(demo=False):
 
         # E2E更新頻度制御
         if current_time - last_e2e_update_time < e2e_update_interval:
-            time.sleep(0.001)
+            # time.sleep(0.001)
+            time.sleep(0.01)
             continue
 
         # ===== カメラフレーム取得 =====
