@@ -25,67 +25,68 @@ from openpilot.selfdrive.modeld.runners import ModelRunner
 from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.selfdrive.modeld.models.commonmodel_pyx import ModelFrame, CLContext
 from collections import deque
+import argparse
 
 # ===== プロセス設定 =====
 PROCESS_NAME = "selfdrive.modeld.e2emodeld"
-SEND_RAW_PRED = os.getenv("SEND_RAW_PRED")  # デバッグ用: 生の予測値送信フラグ
-SEND_E2E_OUTPUT = os.getenv(
-    "SEND_E2E_OUTPUT", "1"
-)  # E2E出力を常に送信（デフォルト有効） 
+# SEND_RAW_PRED = os.getenv("SEND_RAW_PRED")  # デバッグ用: 生の予測値送信フラグ
+# SEND_E2E_OUTPUT = os.getenv(
+#     "SEND_E2E_OUTPUT", "1"
+# )  # E2E出力を常に送信（デフォルト有効） 
 
 # ===== モデルファイルパス設定 =====
 # カスタム学習済みE2Eモデルのパス設定
-MODEL_PATHS = {
-    ModelRunner.ONNX: Path(__file__).parent
-    # / "models/checkpoint_epoch_57_best.onnx"  # v2.1 Transformer
-    # / "models/checkpoint_epoch_90_best.onnx"  # v2.1 LSTM
-    / "models/v2.2_lstm.onnx"  # v2.2 LSTM
+# MODEL_PATHS = {
+#     ModelRunner.ONNX: Path(__file__).parent
+#     # / "models/checkpoint_epoch_57_best.onnx"  # v2.1 Transformer
+#     # / "models/checkpoint_epoch_90_best.onnx"  # v2.1 LSTM
+#     / "models/v2.2_lstm.onnx"  # v2.2 LSTM
 
-}
+# }
 
 E2E_MODEL_FREQ = 10.0  # 10Hz
 IMAGE_SIZE = 224
 
 # 新しいcarStateの次元を定義
-CAR_STATE_DIM = 5
-PREDICTION_HORIZON = 10
+# CAR_STATE_DIM = 5
+# PREDICTION_HORIZON = 10
 
-car_state_queue: deque = deque(maxlen=120)
-
-
-def update_car_state_queue(car_state_data):
-    timestamp = time.time()
-    car_state_entry = {
-        "timestamp": timestamp,
-        "vEgo": car_state_data.get("vEgo", 0.0),
-        "aEgo": car_state_data.get("aEgo", 0.0),
-        "steeringAngleDeg": car_state_data.get("steeringAngleDeg", 0.0),
-        "leftBlinker": car_state_data.get("leftBlinker", False),
-        "rightBlinker": car_state_data.get("rightBlinker", False),
-    }
-    car_state_queue.append(car_state_entry)
+# car_state_queue: deque = deque(maxlen=120)
 
 
-def get_past_car_state_data(queue, step=0.5, steps=10):
-    current_time = time.time()
-    past_data = {
-        "vEgos": [],
-        "aEgos": [],
-        "steeringAngleDegs": [],
-        "leftBlinkers": [],
-        "rightBlinkers": [],
-    }
+# def update_car_state_queue(car_state_data):
+#     timestamp = time.time()
+#     car_state_entry = {
+#         "timestamp": timestamp,
+#         "vEgo": car_state_data.get("vEgo", 0.0),
+#         "aEgo": car_state_data.get("aEgo", 0.0),
+#         "steeringAngleDeg": car_state_data.get("steeringAngleDeg", 0.0),
+#         "leftBlinker": car_state_data.get("leftBlinker", False),
+#         "rightBlinker": car_state_data.get("rightBlinker", False),
+#     }
+#     car_state_queue.append(car_state_entry)
 
-    for i in range(steps):
-        target_time = current_time - (i * step)
-        closest_entry = min(queue, key=lambda x: abs(x["timestamp"] - target_time))
-        past_data["vEgos"].append(closest_entry["vEgo"])
-        past_data["aEgos"].append(closest_entry["aEgo"])
-        past_data["steeringAngleDegs"].append(closest_entry["steeringAngleDeg"])
-        past_data["leftBlinkers"].append(1 if closest_entry["leftBlinker"] else 0)
-        past_data["rightBlinkers"].append(1 if closest_entry["rightBlinker"] else 0)
 
-    return past_data
+# def get_past_car_state_data(queue, step=0.5, steps=10):
+#     current_time = time.time()
+#     past_data = {
+#         "vEgos": [],
+#         "aEgos": [],
+#         "steeringAngleDegs": [],
+#         "leftBlinkers": [],
+#         "rightBlinkers": [],
+#     }
+
+#     for i in range(steps):
+#         target_time = current_time - (i * step)
+#         closest_entry = min(queue, key=lambda x: abs(x["timestamp"] - target_time))
+#         past_data["vEgos"].append(closest_entry["vEgo"])
+#         past_data["aEgos"].append(closest_entry["aEgo"])
+#         past_data["steeringAngleDegs"].append(closest_entry["steeringAngleDeg"])
+#         past_data["leftBlinkers"].append(1 if closest_entry["leftBlinker"] else 0)
+#         past_data["rightBlinkers"].append(1 if closest_entry["rightBlinker"] else 0)
+
+#     return past_data
 
 
 # def process_camera_frame(buf: VisionBuf) -> np.ndarray:
@@ -126,31 +127,31 @@ def get_past_car_state_data(queue, step=0.5, steps=10):
 #         return np.zeros((3, IMAGE_SIZE, IMAGE_SIZE), dtype=np.float32)
 
 
-class FrameMeta:
-    """
-    カメラフレームのメタデータを管理するクラス
+# class FrameMeta:
+#     """
+#     カメラフレームのメタデータを管理するクラス
 
-    フレームID、タイムスタンプなどの情報を格納し、
-    フレーム同期やドロップフレーム検出に使用されます。
-    """
+#     フレームID、タイムスタンプなどの情報を格納し、
+#     フレーム同期やドロップフレーム検出に使用されます。
+#     """
 
-    frame_id: int = 0  # フレーム通番
-    timestamp_sof: int = 0  # フレーム開始時刻（nanosecond）
-    timestamp_eof: int = 0  # フレーム終了時刻（nanosecond）
+#     frame_id: int = 0  # フレーム通番
+#     timestamp_sof: int = 0  # フレーム開始時刻（nanosecond）
+#     timestamp_eof: int = 0  # フレーム終了時刻（nanosecond）
 
-    def __init__(self, vipc=None):
-        """
-        VisionIpcClientから メタデータを初期化
+#     def __init__(self, vipc=None):
+#         """
+#         VisionIpcClientから メタデータを初期化
 
-        Args:
-          vipc: VisionIpcClient - カメラクライアント（Noneの場合はデフォルト値を使用）
-        """
-        if vipc is not None:
-            self.frame_id, self.timestamp_sof, self.timestamp_eof = (
-                vipc.frame_id,
-                vipc.timestamp_sof,
-                vipc.timestamp_eof,
-            )
+#         Args:
+#           vipc: VisionIpcClient - カメラクライアント（Noneの場合はデフォルト値を使用）
+#         """
+#         if vipc is not None:
+#             self.frame_id, self.timestamp_sof, self.timestamp_eof = (
+#                 vipc.frame_id,
+#                 vipc.timestamp_sof,
+#                 vipc.timestamp_eof,
+#             )
 
 
 # class E2EModelState:
@@ -243,27 +244,27 @@ def main(demo=False):
     cloudlog.warning("e2emodeld init")
 
     # ===== プロセス設定の初期化 =====
-    sentry.set_tag("daemon", PROCESS_NAME)  # Sentryエラー追跡用タグ設定
-    cloudlog.bind(daemon=PROCESS_NAME)  # ログにプロセス名をバインド
-    setproctitle(PROCESS_NAME)  # プロセス名を設定（psコマンドで確認可能）
-    config_realtime_process(7, 54)  # リアルタイムプロセス設定（CPU7番、優先度54）
+    # sentry.set_tag("daemon", PROCESS_NAME)  # Sentryエラー追跡用タグ設定
+    # cloudlog.bind(daemon=PROCESS_NAME)  # ログにプロセス名をバインド
+    # setproctitle(PROCESS_NAME)  # プロセス名を設定（psコマンドで確認可能）
+    # config_realtime_process(7, 54)  # リアルタイムプロセス設定（CPU7番、優先度54）
 
     # ===== OpenCLコンテキストとE2Eモデルの初期化 =====
-    try:
-        cloudlog.warning("setting up CL context")
-        cl_context = CLContext()  # OpenCL実行コンテキスト（GPU処理用）
-        cloudlog.warning("CL context ready; loading E2E model")
-        #検証のためコメントアウト
-        # model = E2EModelState(cl_context)  # E2Eモデルの初期化
-        cloudlog.warning("E2E model loaded, e2emodeld starting")
-    except Exception as e:
-        cloudlog.error(f"Failed to initialize E2E model: {e}")
-        import traceback
+    # try:
+    #     cloudlog.warning("setting up CL context")
+    #     cl_context = CLContext()  # OpenCL実行コンテキスト（GPU処理用）
+    #     cloudlog.warning("CL context ready; loading E2E model")
+    #     #検証のためコメントアウト
+    #     # model = E2EModelState(cl_context)  # E2Eモデルの初期化
+    #     cloudlog.warning("E2E model loaded, e2emodeld starting")
+    # except Exception as e:
+    #     cloudlog.error(f"Failed to initialize E2E model: {e}")
+    #     import traceback
 
-        cloudlog.error(
-            f"E2E model initialization error traceback: {traceback.format_exc()}"
-        )
-        raise
+    #     cloudlog.error(
+    #         f"E2E model initialization error traceback: {traceback.format_exc()}"
+    #     )
+    #     raise
 
     # ===== カメラクライアントの設定（シミュレータ・実機対応） =====
     # try:
@@ -353,8 +354,8 @@ def main(demo=False):
     #     raise
 
 
-    if demo:
-        CP = get_demo_car_param
+    # if demo:
+    #     CP = get_demo_car_param
     # params = Params()
 
     # # setup filter to track dropped frames
@@ -381,6 +382,7 @@ def main(demo=False):
     loop_count = 0  # ループカウンター追加
 
     while True:
+        
         current_time = time.monotonic()
         loop_count += 1
 
@@ -393,8 +395,8 @@ def main(demo=False):
 
         # E2E更新頻度制御
         if current_time - last_e2e_update_time < e2e_update_interval:
-            # time.sleep(0.001)
-            time.sleep(0.01)
+            time.sleep(0.001)
+            # time.sleep(0.01)
             continue
 
         # ===== カメラフレーム取得 =====
@@ -630,9 +632,7 @@ if __name__ == "__main__":
       python selfdrive/modeld/e2emodeld.py --demo   # デモモード
     """
     try:
-        # コマンドライン引数の解析
-        import argparse
-
+        #コマンドライン引数の解析
         parser = argparse.ArgumentParser(description="E2E自動運転モデル実行デーモン")
         parser.add_argument(
             "--demo",
@@ -641,8 +641,9 @@ if __name__ == "__main__":
         )
         args = parser.parse_args()
 
-        # メイン関数の実行
+        # # メイン関数の実行
         main(demo=args.demo)
+        cloudlog.debug("e2emodeld main loop!")
 
     except KeyboardInterrupt:
         # Ctrl+Cによる正常終了
