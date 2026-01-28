@@ -36,22 +36,29 @@ PROCESS_NAME = "selfdrive.modeld.e2emodeld"
 
 # ===== モデルファイルパス設定 =====
 # カスタム学習済みE2Eモデルのパス設定
-# MODEL_PATHS = {
-#     ModelRunner.ONNX: Path(__file__).parent
-#     # / "models/checkpoint_epoch_57_best.onnx"  # v2.1 Transformer
-#     # / "models/checkpoint_epoch_90_best.onnx"  # v2.1 LSTM
-#     / "models/v2.2_lstm.onnx"  # v2.2 LSTM
+MODEL_PATHS = {
+    ModelRunner.ONNX: Path(__file__).parent
+    # / "models/checkpoint_epoch_57_best.onnx"  # v2.1 Transformer
+    # / "models/checkpoint_epoch_90_best.onnx"  # v2.1 LSTM
+    / "models/v2.2_lstm.onnx"  # v2.2 LSTM
 
-# }
+}
 
 E2E_MODEL_FREQ = 10.0  # 10Hz
 IMAGE_SIZE = 224
 
 # 新しいcarStateの次元を定義
-# CAR_STATE_DIM = 5
-# PREDICTION_HORIZON = 10
+CAR_STATE_DIM = 5
+PREDICTION_HORIZON = 10
 
 # car_state_queue: deque = deque(maxlen=120)
+
+# VisionBufを定義　検証用
+class VisionBuf:
+    def __init__(self):
+        self.data = np.zeros((3, IMAGE_SIZE, IMAGE_SIZE), dtype=np.float32)
+        self.height = IMAGE_SIZE
+        self.width = IMAGE_SIZE
 
 
 # def update_car_state_queue(car_state_data):
@@ -154,7 +161,7 @@ IMAGE_SIZE = 224
 #             )
 
 
-# class E2EModelState:
+class E2EModelState:
 #     """
 #     E2E（End-to-End）モデルの状態とデータを管理するクラス
 #     """
@@ -163,10 +170,10 @@ IMAGE_SIZE = 224
 #     frame: ModelFrame  # メインカメラフレーム処理用
 #     wide_frame: ModelFrame  # ワイドカメラフレーム処理用
 #     session: ort.InferenceSession  # ONNXランタイムセッション
-#     inputs: Dict[str, np.ndarray]  # モデル入力データ
-#     output: Dict[str, float]  # モデル出力データ
+    inputs: Dict[str, np.ndarray]  # モデル入力データ
+    output: Dict[str, float]  # モデル出力データ
 
-#     def __init__(self, context: CLContext):
+    def __init__(self, context: CLContext):
 #         """
 #         E2EModelStateの初期化
 #         """
@@ -174,26 +181,26 @@ IMAGE_SIZE = 224
 #         self.frame = ModelFrame(context)  # メインカメラ用
 #         self.wide_frame = ModelFrame(context)  # ワイドカメラ用
 
-#         self.session = ort.InferenceSession(
-#             MODEL_PATHS[ModelRunner.ONNX].as_posix(), providers=["CPUExecutionProvider"]
-#         )
+        self.session = ort.InferenceSession(
+            MODEL_PATHS[ModelRunner.ONNX].as_posix(), providers=["CPUExecutionProvider"]
+        )
 
-#         self.inputs = {
-#             "mainCamera": np.zeros((1, 3, 224, 224), dtype=np.float32),
-#             "zoomCamera": np.zeros((1, 3, 224, 224), dtype=np.float32),
-#             "navVector": np.zeros((1, 150), dtype=np.float32),
-#             "carState": np.zeros((1, CAR_STATE_DIM, PREDICTION_HORIZON), dtype=np.float32),  # 統合されたcarState
-#         }
+        self.inputs = {
+            "mainCamera": np.zeros((1, 3, 224, 224), dtype=np.float32),
+            "zoomCamera": np.zeros((1, 3, 224, 224), dtype=np.float32),
+            "navVector": np.zeros((1, 150), dtype=np.float32),
+            "carState": np.zeros((1, CAR_STATE_DIM, PREDICTION_HORIZON), dtype=np.float32),  # 統合されたcarState
+        }
 
-#         self.output = {
-#             "pred_vEgo": float(0.0),
-#             "pred_aEgo": float(0.0),
-#             "pred_steeringAngleDeg": float(0.0),
-#         }
+        self.output = {
+            "pred_vEgo": float(0.0),
+            "pred_aEgo": float(0.0),
+            "pred_steeringAngleDeg": float(0.0),
+        }
 
-#     def run(
-#         self, buf: VisionBuf, wbuf: VisionBuf, inputs: Dict[str, np.ndarray]
-#     ) -> Optional[Dict[str, float|List[float]]]:
+    def run(
+        self, buf: VisionBuf, wbuf: VisionBuf, inputs: Dict[str, np.ndarray]
+    ) -> Optional[Dict[str, float|List[float]]]:
 #         """
 #         E2Eモデルの推論実行メイン関数
 #         """
@@ -228,13 +235,13 @@ IMAGE_SIZE = 224
 #         except Exception as e:
 #             cloudlog.error(f"Error processing navVector input: {e}")
 
-#         pred_vEgos, pred_aEgos, pred_steeringAngleDegs = self.session.run(None, self.inputs)
-#         vEgos_plan: List[float] = (pred_vEgos[0] * 10.0).tolist()  # m/sにスケーリング
-#         self.output["pred_vEgo"] = vEgos_plan[0]
-#         self.output["pred_aEgo"] = float(pred_aEgos[0][0])
-#         self.output["pred_steeringAngleDeg"] = float(pred_steeringAngleDegs[0][0] * 100.0)  # degにスケーリング
-#         self.output["vEgos_plan"] = vEgos_plan
-#         return self.output
+        pred_vEgos, pred_aEgos, pred_steeringAngleDegs = self.session.run(None, self.inputs)
+        vEgos_plan: List[float] = (pred_vEgos[0] * 10.0).tolist()  # m/sにスケーリング
+        self.output["pred_vEgo"] = vEgos_plan[0]
+        self.output["pred_aEgo"] = float(pred_aEgos[0][0])
+        self.output["pred_steeringAngleDeg"] = float(pred_steeringAngleDegs[0][0] * 100.0)  # degにスケーリング
+        self.output["vEgos_plan"] = vEgos_plan
+        return self.output
 
 
 def main(demo=False):
@@ -244,27 +251,28 @@ def main(demo=False):
     cloudlog.warning("e2emodeld init")
 
     # ===== プロセス設定の初期化 =====
-    # sentry.set_tag("daemon", PROCESS_NAME)  # Sentryエラー追跡用タグ設定
-    # cloudlog.bind(daemon=PROCESS_NAME)  # ログにプロセス名をバインド
-    # setproctitle(PROCESS_NAME)  # プロセス名を設定（psコマンドで確認可能）
-    # config_realtime_process(7, 54)  # リアルタイムプロセス設定（CPU7番、優先度54）
+    sentry.set_tag("daemon", PROCESS_NAME)  # Sentryエラー追跡用タグ設定
+    cloudlog.bind(daemon=PROCESS_NAME)  # ログにプロセス名をバインド
+    setproctitle(PROCESS_NAME)  # プロセス名を設定（psコマンドで確認可能）
+    config_realtime_process(7, 54)  # リアルタイムプロセス設定（CPU7番、優先度54）
 
     # ===== OpenCLコンテキストとE2Eモデルの初期化 =====
-    # try:
-    #     cloudlog.warning("setting up CL context")
-    #     cl_context = CLContext()  # OpenCL実行コンテキスト（GPU処理用）
-    #     cloudlog.warning("CL context ready; loading E2E model")
-    #     #検証のためコメントアウト
-    #     # model = E2EModelState(cl_context)  # E2Eモデルの初期化
-    #     cloudlog.warning("E2E model loaded, e2emodeld starting")
-    # except Exception as e:
-    #     cloudlog.error(f"Failed to initialize E2E model: {e}")
-    #     import traceback
+    try:
+        cloudlog.warning("setting up CL context")
+        cl_context = CLContext()  # OpenCL実行コンテキスト（GPU処理用）
+        cloudlog.warning("CL context ready; loading E2E model")
+        model = E2EModelState(cl_context)  # E2Eモデルの初期化
+        cloudlog.warning("E2E model loaded, e2emodeld starting")
+        print("E2E model loaded, e2emodeld starting")
+    except Exception as e:
+        cloudlog.error(f"Failed to initialize E2E model: {e}")
+        print(f"Failed to initialize E2E model: {e}")
+        import traceback
 
-    #     cloudlog.error(
-    #         f"E2E model initialization error traceback: {traceback.format_exc()}"
-    #     )
-    #     raise
+        cloudlog.error(
+            f"E2E model initialization error traceback: {traceback.format_exc()}"
+        )
+        raise
 
     # ===== カメラクライアントの設定（シミュレータ・実機対応） =====
     # try:
@@ -363,8 +371,8 @@ def main(demo=False):
     # last_vipc_frame_id = 0
     # run_count = 0
     # live_calib_seen = False
-    # nav_instructions = np.zeros(ModelConstants.NAV_INSTRUCTION_LEN, dtype=np.float32)
-    # buf_main, buf_extra = None, None
+    nav_instructions = np.zeros(ModelConstants.NAV_INSTRUCTION_LEN, dtype=np.float32)
+    buf_main, buf_extra = None, None
     # meta_main = FrameMeta()
     # meta_extra = FrameMeta()s()
     # else:
@@ -397,10 +405,8 @@ def main(demo=False):
         if current_time - last_e2e_update_time < e2e_update_interval:
             time.sleep(0.001)
             # time.sleep(0.1)
+            cloudlog.warning("sleep")
             continue
-
-        #検証用　仮
-        last_e2e_update_time = current_time
 
         # ===== カメラフレーム取得 =====
         # try:
@@ -515,9 +521,10 @@ def main(demo=False):
 
         # nav_valid = sm.valid["navInstruction"]
         # nav_enabled = nav_valid
+        nav_enabled = False #検証用
 
-        # if not nav_enabled:
-        #     nav_instructions[:] = 0
+        if not nav_enabled:
+            nav_instructions[:] = 0
 
         # if nav_enabled and sm.updated["navInstruction"]:
         #     nav_instructions[:] = 0
@@ -546,29 +553,37 @@ def main(demo=False):
         #         f"skipping E2E model eval. Dropped {vipc_dropped_frames} frames"
         #     )
 
-        # inputs: Dict[str, np.ndarray] = {
-        #     "carState": sm["carState"],
-        #     "nav_instructions": nav_instructions,
-        # }
+        inputs: Dict[str, np.ndarray] = {
+            # "carState": sm["carState"],
+            "carState": np.array([[ #検証用
+                [0.0] * PREDICTION_HORIZON,  # vEgo
+                [0.0] * PREDICTION_HORIZON,  # aEgo
+                [-10.999989] * PREDICTION_HORIZON,  # steeringAngleDeg
+                [0.0] * PREDICTION_HORIZON,  # leftBlinker
+                [0.0] * PREDICTION_HORIZON   # rightBlinker
+            ]], dtype=np.float32),
+            "nav_instructions": nav_instructions,
+        }
 
-        # mt1 = time.perf_counter()
-        # model_output = model.run(buf_main, buf_extra, inputs)
-        # mt2 = time.perf_counter()
-        # model_execution_time = mt2 - mt1
+        mt1 = time.perf_counter()
+        model_output = model.run(buf_main, buf_extra, inputs)
+        print(f"Model output: {model_output}")
+        mt2 = time.perf_counter()
+        model_execution_time = mt2 - mt1
 
-        # if model_output is not None:
-        #     cloudlog.debug(f"E2E model execution time: {model_execution_time:.4f}s")
+        if model_output is not None:
+            cloudlog.debug(f"E2E model execution time: {model_execution_time:.4f}s")
 
-        #     try:
-        #         pred_vEgo = model_output["pred_vEgo"]
-        #         pred_aEgo = model_output["pred_aEgo"]
-        #         pred_steeringAngleDeg = model_output["pred_steeringAngleDeg"]
-        #         vEgos_plan = model_output.get("vEgos_plan", [])
+            try:
+                pred_vEgo = model_output["pred_vEgo"]
+                pred_aEgo = model_output["pred_aEgo"]
+                pred_steeringAngleDeg = model_output["pred_steeringAngleDeg"]
+                vEgos_plan = model_output.get("vEgos_plan", [])
 
-        #         cloudlog.debug("E2E ONNX model predictions")
-        #         cloudlog.debug(f"steer: {pred_steeringAngleDeg:.6f} Deg")
-        #         cloudlog.debug(f"acc: {pred_aEgo:.6f} m/s², vel: {pred_vEgo:.6f} m/s")
-        #         cloudlog.debug(f"execTime: {model_execution_time:.3f}ms")
+                cloudlog.debug("E2E ONNX model predictions")
+                cloudlog.debug(f"steer: {pred_steeringAngleDeg:.6f} Deg")
+                cloudlog.debug(f"acc: {pred_aEgo:.6f} m/s², vel: {pred_vEgo:.6f} m/s")
+                cloudlog.debug(f"execTime: {model_execution_time:.3f}ms")
 
         #         # 詳細デバッグ: モデル出力値をファイルにも記録
         #         debug_msg = f"steer={pred_steeringAngleDeg:.6f}, acc={pred_aEgo:.6f}, vel={pred_vEgo:.6f}, execTime={model_execution_time:.3f}ms"
@@ -594,13 +609,13 @@ def main(demo=False):
         #             pm.send("e2eOutput", e2e_out_msg)
 
         #         # E2E更新時間を記録
-        #         last_e2e_update_time = current_time
+                last_e2e_update_time = current_time
 
-        #     except Exception as e:
-        #         cloudlog.error(f"Error processing E2E model output: {e}")
-        #         import traceback
+            except Exception as e:
+                cloudlog.error(f"Error processing E2E model output: {e}")
+                import traceback
 
-        #         cloudlog.error(f"E2E error traceback: {traceback.format_exc()}")
+                cloudlog.error(f"E2E error traceback: {traceback.format_exc()}")
 
         #         # エラー時でも無効なメッセージを送信
         #         try:
