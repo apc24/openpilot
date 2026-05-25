@@ -7,6 +7,7 @@ export OPENBLAS_NUM_THREADS=1
 export VECLIB_MAXIMUM_THREADS=1
 export ZMQ=1
 
+
 if [ -z "$AGNOS_VERSION" ]; then
   export AGNOS_VERSION="9.6"
 fi
