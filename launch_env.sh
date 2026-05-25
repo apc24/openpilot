@@ -8,6 +8,7 @@ export VECLIB_MAXIMUM_THREADS=1
 export MAPTILER_TOKEN=""
 export MAPBOX_TOKEN=""
 
+
 if [ -z "$AGNOS_VERSION" ]; then
   export AGNOS_VERSION="9.6"
 fi
