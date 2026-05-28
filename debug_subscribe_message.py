@@ -117,6 +117,23 @@ def subscribe_messages(addr: str, service: str = "roadEncodeData"):
                     except Exception as e:
                         print(f"Failed to decode DebugPublishMessage: {e}")
                         print(raw)
+                elif s == "e2eOutput":
+                    raw = sm[s]
+                    raw_bytes = raw if isinstance(raw, bytes) else bytes(raw)
+                    try:
+                        with custom_capnp.E2EOutput.from_bytes(raw_bytes) as msg:
+                            print({
+                                "aEgo": msg.aEgo,
+                                "vEgo": msg.vEgo,
+                                "steeringAngleDeg": msg.steeringAngleDeg,
+                                "timestamp": msg.timestamp,
+                                "isValid": msg.isValid,
+                                "vEgoPlans": list(msg.vEgoPlans),
+                                "bytes": len(raw_bytes),
+                            })
+                    except Exception as e:
+                        print(f"Failed to decode E2EOutput: {e}")
+                        print(raw)
                 elif s.startswith("roadEncodeData") or s.startswith("wideEncodeData"):
                     msg = sm[s]
                     print(
