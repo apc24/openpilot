@@ -10,7 +10,7 @@ CUSTOM_CAPNP_PATH = Path(__file__).resolve().parent / "cereal" / "custom.capnp"
 custom_capnp = capnp.load(str(CUSTOM_CAPNP_PATH))
 
 
-def subscribe_e2eoutput(addr: str = "127.0.0.1"):
+def subscribe_e2eoutput(addr: str = "192.168.1.2"):
     service = "e2eOutput"
     sm = messaging.SubMaster([service], addr=addr)
     print(f"waiting for {service} messages on {addr} ...")
@@ -40,6 +40,6 @@ def subscribe_e2eoutput(addr: str = "127.0.0.1"):
 if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument("--addr", default="127.0.0.1", help="PublisherのIPアドレス")
+    parser.add_argument("--addr", default="192.168.1.2", help="PublisherのIPアドレス")
     args = parser.parse_args()
     subscribe_e2eoutput(addr=args.addr)
