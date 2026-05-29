@@ -55,5 +55,34 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser()
     parser.add_argument("--addr", default="192.168.1.51", help="PublisherのIPアドレス")
+    parser.add_argument("--zmq", action="store_true", help="Use pure pyzmq for receiving")
     args = parser.parse_args()
-    subscribe_e2eoutput(addr=args.addr)
+
+    if args.zmq:
+        # --- pyzmqのみで受信 ---
+        import zmq
+        context = zmq.Context()
+        socket = context.socket(zmq.SUB)
+        socket.bind(f"tcp://{args.addr}:8061")
+        socket.setsockopt_string(zmq.SUBSCRIBE, "")
+        print(f"[zmq] waiting for e2eOutput messages on tcp://{args.addr}:8061 ...")
+        while True:
+            try:
+                raw = socket.recv()
+                with custom_capnp.E2EOutput.from_bytes(raw) as msg:
+                    print({
+                        "aEgo": msg.aEgo,
+                        "vEgo": msg.vEgo,
+                        "steeringAngleDeg": msg.steeringAngleDeg,
+                        "timestamp": msg.timestamp,
+                        "isValid": msg.isValid,
+                        "vEgoPlans": list(msg.vEgoPlans),
+                        "bytes": len(raw),
+                    })
+            except Exception as e:
+                print(f"Failed to decode E2EOutput: {e}")
+                print(raw)
+    else:
+        # --- 既存のmessaging.SubMasterによる受信（コメントアウト可） ---
+        # subscribe_e2eoutput(addr=args.addr)
+        subscribe_e2eoutput(addr=args.addr)

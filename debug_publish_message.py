@@ -18,6 +18,7 @@
 import argparse
 import time
 from pathlib import Path
+import zmq
 
 import capnp  # type: ignore[import-not-found]
 
@@ -96,41 +97,33 @@ if __name__ == "__main__":
         default=0,
         help="Number of messages to publish. 0 means infinite.",
     )
-    # args = parser.parse_args()
-
-    # try:
-    #     publish_messages(
-    #         service=args.service,
-    #         text=args.text,
-    #         sender=args.sender,
-    #         interval_ms=args.interval_ms,
-    #         count=args.count,
-    #     )
-    # except KeyboardInterrupt:
-    #     print("Stopped by user.")
-
+    parser.add_argument("--zmq", action="store_true", help="Use pure pyzmq for sending")
     args = parser.parse_args()
 
-    try:
-        pm = messaging.PubMaster([args.service], addr=args.addr)
-        print(f"Publishing to {args.service} at {args.addr}. Press Ctrl+C to stop.")
+    if args.zmq:
+        # --- pyzmqのみで送信 ---
+        import zmq
+        context = zmq.Context()
+        socket = context.socket(zmq.PUB)
+        socket.connect(f"tcp://{args.addr}:8061")
+        print(f"ZMQ mode: sending to tcp://{args.addr}:8061")
         sequence = 0
-        while args.count <= 0 or sequence < args.count:
-            msg = custom_capnp.E2EOutput.new_message()
-            msg.aEgo = 0.0
-            msg.vEgo = 0.0
-            msg.steeringAngleDeg = 0.0
-            msg.timestamp = time.time_ns()
-            msg.isValid = True
-            msg.vEgoPlans = [0.0] * 10
-            dat = messaging.new_message(args.service, valid=True)
-            setattr(dat, args.service, msg)
-            pm.send(args.service, dat)
-            print(
-                f"sent: service={args.service} sequence={sequence} text='{args.text}' bytes={len(msg.to_bytes())}"
-            )
-            sequence += 1
-            if args.interval_ms > 0:
-                time.sleep(args.interval_ms / 1000.0)
-    except KeyboardInterrupt:
-        print("Stopped by user.")    
+        try:
+            while args.count <= 0 or sequence < args.count:
+                msg = custom_capnp.E2EOutput.new_message()
+                msg.aEgo = 0.0
+                msg.vEgo = 0.0
+                msg.steeringAngleDeg = 0.0
+                msg.timestamp = time.time_ns()
+                msg.isValid = True
+                msg.vEgoPlans = [0.0] * 10
+                data = msg.to_bytes()
+                socket.send(data)
+                print(f"sent (zmq): sequence={sequence} bytes={len(data)}")
+                sequence += 1
+                if args.interval_ms > 0:
+                    time.sleep(args.interval_ms / 1000.0)
+        except KeyboardInterrupt:
+            print("Stopped by user.")
+    else:
+        pass
