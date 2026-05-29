@@ -86,6 +86,7 @@ if __name__ == "__main__":
         ],
         help="Target custom raw data service",
     )
+    parser.add_argument("--addr", default="192.168.1.51", help="Publish target address (IP)")
     parser.add_argument("--text", default="hello from debug publisher")
     parser.add_argument("--sender", default="debug_publish_message.py")
     parser.add_argument("--interval-ms", type=int, default=100)
