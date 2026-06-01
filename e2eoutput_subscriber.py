@@ -63,7 +63,7 @@ if __name__ == "__main__":
         import zmq
         context = zmq.Context()
         socket = context.socket(zmq.SUB)
-        socket.bind(f"tcp://{args.addr}:8061")
+        socket.connect(f"tcp://{args.addr}:8061")
         socket.setsockopt_string(zmq.SUBSCRIBE, "")
         print(f"[zmq] waiting for e2eOutput messages on tcp://{args.addr}:8061 ...")
         while True:
