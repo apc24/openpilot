@@ -21,13 +21,11 @@ from pathlib import Path
 import zmq
 
 import capnp  # type: ignore[import-not-found]
+from cereal import custom as custom_capnp
 
 import cereal.messaging as messaging
 
 messaging.context = messaging.Context()
-
-CUSTOM_CAPNP_PATH = Path(__file__).resolve().parent / "cereal" / "custom.capnp"
-custom_capnp = capnp.load(str(CUSTOM_CAPNP_PATH))
 
 
 def build_payload(sequence: int, sender: str, text: str) -> bytes:
@@ -105,8 +103,9 @@ if __name__ == "__main__":
         import zmq
         context = zmq.Context()
         socket = context.socket(zmq.PUB)
-        socket.connect(f"tcp://{args.addr}:8061")
-        print(f"ZMQ mode: sending to tcp://{args.addr}:8061")
+        bind_addr = f"tcp://{args.addr}:8061"
+        socket.bind(bind_addr)
+        print(f"ZMQ mode: binding on {bind_addr}")
         sequence = 0
         try:
             while args.count <= 0 or sequence < args.count:
