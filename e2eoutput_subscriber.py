@@ -3,12 +3,10 @@
 
 import capnp
 import cereal.messaging as messaging
+from cereal import custom as custom_capnp
 from pathlib import Path
 
-# custom.capnpのロード
-CUSTOM_CAPNP_PATH = Path(__file__).resolve().parent / "cereal" / "custom.capnp"
-CEREAL_PATH = Path(__file__).resolve().parent / "cereal"
-custom_capnp = capnp.load(str(CUSTOM_CAPNP_PATH), import_paths=[str(CEREAL_PATH)])
+# custom.capnp は cereal.custom からロード済みモジュールを使用
 
 
 def subscribe_e2eoutput(addr: str = "192.168.1.51"):

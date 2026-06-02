@@ -21,14 +21,11 @@ from pathlib import Path
 import zmq
 
 import capnp  # type: ignore[import-not-found]
+from cereal import custom as custom_capnp
 
 import cereal.messaging as messaging
 
 messaging.context = messaging.Context()
-
-CUSTOM_CAPNP_PATH = Path(__file__).resolve().parent / "cereal" / "custom.capnp"
-CEREAL_PATH = Path(__file__).resolve().parent / "cereal"
-custom_capnp = capnp.load(str(CUSTOM_CAPNP_PATH), import_paths=[str(CEREAL_PATH)])
 
 
 def build_payload(sequence: int, sender: str, text: str) -> bytes:
