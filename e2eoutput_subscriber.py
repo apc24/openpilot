@@ -7,7 +7,8 @@ from pathlib import Path
 
 # custom.capnpのロード
 CUSTOM_CAPNP_PATH = Path(__file__).resolve().parent / "cereal" / "custom.capnp"
-custom_capnp = capnp.load(str(CUSTOM_CAPNP_PATH))
+CEREAL_PATH = Path(__file__).resolve().parent / "cereal"
+custom_capnp = capnp.load(str(CUSTOM_CAPNP_PATH), import_paths=[str(CEREAL_PATH)])
 
 
 def subscribe_e2eoutput(addr: str = "192.168.1.51"):
