@@ -28,6 +28,7 @@ from openpilot.selfdrive.modeld.models.commonmodel_pyx import ModelFrame, CLCont
 
 PROCESS_NAME = "selfdrive.modeld.modeld"
 SEND_RAW_PRED = os.getenv('SEND_RAW_PRED')
+USE_E2E_CURV = os.getenv('USE_E2E_CURV', '1') == '1'
 
 MODEL_PATHS = {
   ModelRunner.THNEED: Path(__file__).parent / 'models/supercombo.thneed',
@@ -118,12 +119,12 @@ class ModelState:
 
 
 def get_e2e_desired_curvature(sm: SubMaster, vm: VehicleModel, fallback_speed: float) -> Optional[float]:
-  if sm.recv_frame['e2eoutput'] < 0:
+  if sm.recv_frame['e2eOutput'] < 0:
     return None
 
-  e2e_output = sm['e2eoutput']
-  age = (sm.frame - sm.recv_frame['e2eoutput']) / ModelConstants.MODEL_FREQ
-  if age > 0.5 or not sm.valid['e2eoutput'] or not e2e_output.isValid:
+  e2e_output = sm['e2eOutput']
+  age = (sm.frame - sm.recv_frame['e2eOutput']) / ModelConstants.MODEL_FREQ
+  if age > 0.5 or not sm.valid['e2eOutput'] or not e2e_output.isValid:
     return None
 
   speed = max(float(e2e_output.vEgo), fallback_speed, 0.1)
@@ -133,6 +134,7 @@ def get_e2e_desired_curvature(sm: SubMaster, vm: VehicleModel, fallback_speed: f
 
 def main(demo=False):
   cloudlog.warning("modeld init")
+  cloudlog.info(f"use_e2e_curv={USE_E2E_CURV}")
 
   sentry.set_tag("daemon", PROCESS_NAME)
   cloudlog.bind(daemon=PROCESS_NAME)
@@ -170,7 +172,7 @@ def main(demo=False):
 
   # messaging
   pm = PubMaster(["modelV2", "cameraOdometry"])
-  sm = SubMaster(["carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "navModel", "navInstruction", "carControl", "e2eoutput"])
+  sm = SubMaster(["carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "navModel", "navInstruction", "carControl", "e2eOutput"],addr="192.168.1.2")
 
   publish_state = PublishState()
   params = Params()
@@ -306,12 +308,17 @@ def main(demo=False):
     model_execution_time = mt2 - mt1
 
     if model_output is not None:
-      e2e_desired_curvature = get_e2e_desired_curvature(sm, VM, float(sm['carState'].vEgo))
+      if USE_E2E_CURV:
+        e2e_desired_curvature = get_e2e_desired_curvature(sm, VM, float(sm['carState'].vEgo))
+      else:
+        e2e_desired_curvature = None
+      use_e2eoutput = 1 if e2e_desired_curvature is not None else 0
       modelv2_send = messaging.new_message('modelV2')
       posenet_send = messaging.new_message('cameraOdometry')
       fill_model_msg(modelv2_send, model_output, publish_state, meta_main.frame_id, meta_extra.frame_id, frame_id, frame_drop_ratio,
                       meta_main.timestamp_eof, timestamp_llk, model_execution_time, nav_enabled, live_calib_seen,
-                      desired_curvature_override=e2e_desired_curvature)
+                      desired_curvature_override=e2e_desired_curvature,
+                      use_e2eoutput=bool(use_e2eoutput))
 
       desire_state = modelv2_send.modelV2.meta.desireState
       l_lane_change_prob = desire_state[log.Desire.laneChangeLeft]
@@ -322,6 +329,8 @@ def main(demo=False):
       modelv2_send.modelV2.meta.laneChangeDirection = DH.lane_change_direction
 
       fill_pose_msg(posenet_send, model_output, meta_main.frame_id, vipc_dropped_frames, meta_main.timestamp_eof, live_calib_seen)
+      e2e_curv_str = "None" if e2e_desired_curvature is None else f"{e2e_desired_curvature:.6f}"
+      cloudlog.info(f"use_e2eoutput={use_e2eoutput} modelV2.desired_curvature={modelv2_send.modelV2.action.desiredCurvature:.6f} e2e_desired_curvature={e2e_curv_str}")
       pm.send('modelV2', modelv2_send)
       pm.send('cameraOdometry', posenet_send)
 
@@ -340,3 +349,4 @@ if __name__ == "__main__":
   except Exception:
     sentry.capture_exception()
     raise
+  
