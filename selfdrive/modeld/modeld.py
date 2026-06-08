@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import math
 import os
 import time
 import pickle
@@ -18,6 +19,7 @@ from openpilot.common.transformations.model import get_warp_matrix
 from openpilot.selfdrive import sentry
 from openpilot.selfdrive.car.car_helpers import get_demo_car_params
 from openpilot.selfdrive.controls.lib.desire_helper import DesireHelper
+from openpilot.selfdrive.controls.lib.vehicle_model import VehicleModel
 from openpilot.selfdrive.modeld.runners import ModelRunner, Runtime
 from openpilot.selfdrive.modeld.parse_model_outputs import Parser
 from openpilot.selfdrive.modeld.fill_model_msg import fill_model_msg, fill_pose_msg, PublishState
@@ -115,6 +117,20 @@ class ModelState:
     return outputs
 
 
+def get_e2e_desired_curvature(sm: SubMaster, vm: VehicleModel, fallback_speed: float) -> Optional[float]:
+  if sm.recv_frame['e2eoutput'] < 0:
+    return None
+
+  e2e_output = sm['e2eoutput']
+  age = (sm.frame - sm.recv_frame['e2eoutput']) / ModelConstants.MODEL_FREQ
+  if age > 0.5 or not sm.valid['e2eoutput'] or not e2e_output.isValid:
+    return None
+
+  speed = max(float(e2e_output.vEgo), fallback_speed, 0.1)
+  steering_angle_rad = math.radians(float(e2e_output.steeringAngleDeg))
+  return float(-vm.calc_curvature(steering_angle_rad, speed, 0.0))
+
+
 def main(demo=False):
   cloudlog.warning("modeld init")
 
@@ -154,7 +170,7 @@ def main(demo=False):
 
   # messaging
   pm = PubMaster(["modelV2", "cameraOdometry"])
-  sm = SubMaster(["carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "navModel", "navInstruction", "carControl"])
+  sm = SubMaster(["carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "navModel", "navInstruction", "carControl", "e2eoutput"])
 
   publish_state = PublishState()
   params = Params()
@@ -181,6 +197,7 @@ def main(demo=False):
     with car.CarParams.from_bytes(params.get("CarParams", block=True)) as msg:
       CP = msg
   cloudlog.info("modeld got CarParams: %s", CP.carName)
+  VM = VehicleModel(CP)
 
   # TODO this needs more thought, use .2s extra for now to estimate other delays
   steer_delay = CP.steerActuatorDelay + .2
@@ -289,10 +306,12 @@ def main(demo=False):
     model_execution_time = mt2 - mt1
 
     if model_output is not None:
+      e2e_desired_curvature = get_e2e_desired_curvature(sm, VM, float(sm['carState'].vEgo))
       modelv2_send = messaging.new_message('modelV2')
       posenet_send = messaging.new_message('cameraOdometry')
       fill_model_msg(modelv2_send, model_output, publish_state, meta_main.frame_id, meta_extra.frame_id, frame_id, frame_drop_ratio,
-                      meta_main.timestamp_eof, timestamp_llk, model_execution_time, nav_enabled, live_calib_seen)
+                      meta_main.timestamp_eof, timestamp_llk, model_execution_time, nav_enabled, live_calib_seen,
+                      desired_curvature_override=e2e_desired_curvature)
 
       desire_state = modelv2_send.modelV2.meta.desireState
       l_lane_change_prob = desire_state[log.Desire.laneChangeLeft]
