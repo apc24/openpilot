@@ -67,9 +67,22 @@ def metadrive_process(dual_camera: bool, config: dict, camera_array, wide_camera
     cam.get_cam().reparentTo(env.vehicle.origin)
     cam.get_cam().setPos(C3_POSITION)
     cam.get_cam().setHpr(C3_HPR)
-    img = cam.perceive(clip=False)
+    try:
+      # newer metadrive
+      img = cam.perceive(clip=False)
+    except TypeError:
+      # older/newer API variant without `clip`
+      img = cam.perceive()
     if type(img) != np.ndarray:
       img = img.get() # convert cupy array to numpy
+    if img.dtype != np.uint8:
+      # Some metadrive versions return float images in [0, 1]
+      if np.issubdtype(img.dtype, np.floating) and np.nanmax(img) <= 1.0:
+        img = (img * 255.0).clip(0, 255).astype(np.uint8)
+      else:
+        img = np.clip(img, 0, 255).astype(np.uint8)
+    if img.ndim == 3 and img.shape[2] > 3:
+      img = img[:, :, :3]
     return img
 
   rk = Ratekeeper(100, None)
