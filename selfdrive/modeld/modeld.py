@@ -118,13 +118,13 @@ class ModelState:
     return outputs
 
 
-def get_e2e_desired_curvature(sm: SubMaster, vm: VehicleModel, fallback_speed: float) -> Optional[float]:
-  if sm.recv_frame['e2eOutput'] < 0:
+def get_e2e_desired_curvature(sm_from_pc: SubMaster, vm: VehicleModel, fallback_speed: float) -> Optional[float]:
+  if sm_from_pc.recv_frame['e2eOutput'] < 0:
     return None
 
-  e2e_output = sm['e2eOutput']
-  age = (sm.frame - sm.recv_frame['e2eOutput']) / ModelConstants.MODEL_FREQ
-  if age > 0.5 or not sm.valid['e2eOutput'] or not e2e_output.isValid:
+  e2e_output = sm_from_pc['e2eOutput']
+  age = (sm_from_pc.frame - sm_from_pc.recv_frame['e2eOutput']) / ModelConstants.MODEL_FREQ
+  if age > 0.5 or not sm_from_pc.valid['e2eOutput'] or not e2e_output.isValid:
     return None
 
   speed = max(float(e2e_output.vEgo), fallback_speed, 0.1)
@@ -172,7 +172,8 @@ def main(demo=False):
 
   # messaging
   pm = PubMaster(["modelV2", "cameraOdometry"])
-  sm = SubMaster(["carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "navModel", "navInstruction", "carControl", "e2eOutput"],addr="192.168.1.2")
+  sm = SubMaster(["carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "navModel", "navInstruction", "carControl"])
+  sm_from_pc = SubMaster(["e2eOutput"],addr="192.168.1.2")
 
   publish_state = PublishState()
   params = Params()
@@ -309,7 +310,7 @@ def main(demo=False):
 
     if model_output is not None:
       if USE_E2E_CURV:
-        e2e_desired_curvature = get_e2e_desired_curvature(sm, VM, float(sm['carState'].vEgo))
+        e2e_desired_curvature = get_e2e_desired_curvature(sm_from_pc, VM, float(sm['carState'].vEgo))
       else:
         e2e_desired_curvature = None
       use_e2eoutput = 1 if e2e_desired_curvature is not None else 0
@@ -349,4 +350,4 @@ if __name__ == "__main__":
   except Exception:
     sentry.capture_exception()
     raise
-  
+
