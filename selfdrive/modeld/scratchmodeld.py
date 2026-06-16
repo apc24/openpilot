@@ -29,6 +29,7 @@ E2E_MODEL_PATHS = {
 IMAGE_SIZE = 224
 CAR_STATE_DIM = 5
 PREDICTION_HORIZON = 10
+V4L2_BUF_FLAG_KEYFRAME = 8
 
 # 車両状態キュー（過去12秒分、10Hz）
 car_state_queue: deque = deque(maxlen=120)
@@ -133,15 +134,120 @@ def _decode_ffvhuff_packet_in_memory(payload: bytes, width: int, height: int):
     return None
 
 
-class EncodeDataDecoder:
-    def decode(self, msg) -> Optional[DecodedFrame]:
-        if msg.idx.type != log.EncodeIndex.Type.bigBoxLossless:
-            print(f"Unsupported EncodeIndex type: {msg.idx.type}")
-            return None
+def _codec_name_for_encode_type(encode_type: int) -> str:
+    if encode_type == log.EncodeIndex.Type.bigBoxLossless:
+        return "ffvhuff"
+    if encode_type in (
+        log.EncodeIndex.Type.qcameraH264,
+        log.EncodeIndex.Type.livestreamH264,
+    ):
+        return "h264"
+    return "hevc"
 
+
+def _codec_candidates_for_encode_type(encode_type: int) -> List[str]:
+    primary = _codec_name_for_encode_type(encode_type)
+    candidates = [primary]
+    for fallback in ("ffvhuff", "h264", "hevc"):
+        if fallback not in candidates:
+            candidates.append(fallback)
+    return candidates
+
+
+class EncodeDataDecoder:
+    def __init__(self, stream_name: str):
+        self.stream_name = stream_name
+        self.current_encode_type: Optional[int] = None
+        self.codec_candidates: List[str] = []
+        self.codec_candidate_idx = 0
+        self.codec: Optional[av.codec.context.CodecContext] = None
+        self.seen_iframe = False
+
+    def _reset_codec(self, encode_type: int, width: int, height: int) -> None:
+        self.current_encode_type = encode_type
+        self.codec_candidates = _codec_candidates_for_encode_type(encode_type)
+        self.codec_candidate_idx = 0
+        self.codec = av.CodecContext.create(self.codec_candidates[self.codec_candidate_idx], "r")
+        if self.codec.name == "ffvhuff" or encode_type == log.EncodeIndex.Type.bigBoxLossless:
+            self.codec.width = width
+            self.codec.height = height
+            self.codec.pix_fmt = "yuv420p"
+        self.seen_iframe = False
+
+    def _fallback_codec(self, encode_type: int, width: int, height: int, stage: str, err: Exception) -> bool:
+        if self.codec_candidate_idx + 1 >= len(self.codec_candidates):
+            print(f"[scratchmodeld] {self.stream_name}: decode {stage} failed (no more fallbacks): {err}")
+            return False
+
+        self.codec_candidate_idx += 1
+        self.codec = av.CodecContext.create(self.codec_candidates[self.codec_candidate_idx], "r")
+        if self.codec.name == "ffvhuff" or encode_type == log.EncodeIndex.Type.bigBoxLossless:
+            self.codec.width = width
+            self.codec.height = height
+            self.codec.pix_fmt = "yuv420p"
+        self.seen_iframe = False
+        print(f"[scratchmodeld] {self.stream_name}: decode {stage} fallback codec={self.codec.name}")
+        return True
+
+    def decode(self, msg) -> Optional[DecodedFrame]:
+        encode_type = msg.idx.type
         width = int(msg.width)
         height = int(msg.height)
-        frame = _decode_ffvhuff_packet_in_memory(bytes(msg.data), width, height)
+        flags = msg.idx.flags
+
+        if self.codec is None or self.current_encode_type != encode_type:
+            self._reset_codec(encode_type, width, height)
+            print(
+                f"[scratchmodeld] {self.stream_name}: switched codec={self.codec.name} "
+                f"for encode_type={encode_type} candidates={self.codec_candidates}"
+            )
+
+        if self.codec is None:
+            return None
+
+        if encode_type == log.EncodeIndex.Type.bigBoxLossless and self.codec.name == "ffvhuff":
+            frame = _decode_ffvhuff_packet_in_memory(bytes(msg.data), width, height)
+            if frame is None:
+                return None
+            yuv = np.ascontiguousarray(frame.to_ndarray(format="yuv420p"))
+            return DecodedFrame(
+                data=yuv,
+                width=width,
+                height=height,
+                frame_id=int(msg.idx.frameId),
+                timestamp_sof=int(msg.idx.timestampSof),
+                timestamp_eof=int(msg.idx.timestampEof),
+            )
+
+        if not self.seen_iframe and not (flags & V4L2_BUF_FLAG_KEYFRAME):
+            return None
+
+        should_apply_header = len(msg.header) > 0 and (not self.seen_iframe or (flags & V4L2_BUF_FLAG_KEYFRAME))
+        if should_apply_header:
+            try:
+                if self.codec.name == "ffvhuff":
+                    self.codec.extradata = bytes(msg.header)
+                else:
+                    self.codec.decode(av.packet.Packet(bytes(msg.header)))
+            except av.error.FFmpegError as e:
+                if not self._fallback_codec(encode_type, width, height, "header", e):
+                    return None
+                return None
+            self.seen_iframe = True
+        elif not self.seen_iframe:
+            self.seen_iframe = True
+
+        try:
+            decoded_frames = self.codec.decode(av.packet.Packet(bytes(msg.data)))
+        except av.error.FFmpegError as e:
+            if not self._fallback_codec(encode_type, width, height, "payload", e):
+                return None
+            return None
+
+        if len(decoded_frames) == 0:
+            return None
+
+        frame = decoded_frames[-1]
 
         yuv = np.ascontiguousarray(frame.to_ndarray(format="yuv420p"))
         return DecodedFrame(
@@ -232,10 +338,10 @@ def main(addr: str):
 
     print(f"Subscribing to carState, roadEncodeData, wideRoadEncodeData, modelV2 from {addr}")
     sm = SubMaster(["carState", "roadEncodeData", "wideRoadEncodeData", "modelV2"], addr=addr)
-    pm = PubMaster(["E2EOutput"])
+    pm = PubMaster(["e2eOutput"])
 
-    road_decoder = EncodeDataDecoder()
-    wide_decoder = EncodeDataDecoder()
+    road_decoder = EncodeDataDecoder("roadEncodeData")
+    wide_decoder = EncodeDataDecoder("wideRoadEncodeData")
     latest_main = None
     latest_extra = None
 
@@ -277,7 +383,7 @@ def main(addr: str):
         buf_main = latest_main
         buf_extra = latest_extra
 
-        if abs(buf_main.timestamp_sof - buf_extra.timestamp_sof) > 10000000:
+        if abs(buf_main.timestamp_sof - buf_extra.timestamp_sof) > 50000000:
             print(f"Frame timestamp mismatch: main {buf_main.timestamp_sof}, extra {buf_extra.timestamp_sof}")
             if buf_main.timestamp_sof > buf_extra.timestamp_sof:
                 latest_extra = None
@@ -322,12 +428,19 @@ def main(addr: str):
 
         e2e_output_send = messaging.new_message('e2eOutput')
         e2e_output_send.valid = True
-        e2e_output_send.timestamp = int(time.time() * 1e9)
-        e2e_output_send.E2EOutput.vEgo = float(pred_vEgo)
-        e2e_output_send.E2EOutput.aEgo = float(pred_aEgo)
-        e2e_output_send.E2EOutput.steeringAngleDeg = float(pred_steeringAngleDeg)
-        e2e_output_send.E2EOutput.vEgosPlan = pred_vEgos_plan
+        e2e_output_send.e2eOutput.vEgo = float(pred_vEgo)
+        e2e_output_send.e2eOutput.aEgo = float(pred_aEgo)
+        e2e_output_send.e2eOutput.steeringAngleDeg = float(pred_steeringAngleDeg)
+        e2e_output_send.e2eOutput.timestamp = int(time.time() * 1e9)
+        e2e_output_send.e2eOutput.vEgoPlans = pred_vEgos_plan
+        e2e_output_send.e2eOutput.isValid = True
         pm.send('e2eOutput', e2e_output_send)
+        if counter % 20 == 0:
+            print(
+                "[scratchmodeld] sent e2eOutput "
+                f"vEgo={pred_vEgo:.6f} aEgo={pred_aEgo:.6f} "
+                f"steer={pred_steeringAngleDeg:.6f}"
+            )
 
         time_e = time.time()
         latency_ms = (time_e - time_s) * 1000

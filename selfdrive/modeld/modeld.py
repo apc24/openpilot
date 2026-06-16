@@ -242,6 +242,7 @@ def main(demo=False):
       meta_extra = meta_main
 
     sm.update(0)
+    sm_from_pc.update(0)
     desire = DH.desire
     is_rhd = sm["driverMonitoringState"].isRHD
     frame_id = sm["roadCameraState"].frameId
