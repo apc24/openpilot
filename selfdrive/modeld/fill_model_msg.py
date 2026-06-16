@@ -74,6 +74,7 @@ def fill_model_msg(msg: capnp._DynamicStructBuilder, net_output_data: Dict[str, 
 
   # lateral planning
   action = modelV2.action
+  action.desiredCurvatureOrigin = float(net_output_data['desired_curvature'][0,0])
   action.desiredCurvature = float(net_output_data['desired_curvature'][0,0] if desired_curvature_override is None else desired_curvature_override)
   action.useE2eOutput = use_e2eoutput
 
