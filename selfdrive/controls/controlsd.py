@@ -3,7 +3,7 @@ import os
 import math
 import time
 import threading
-from typing import Any, SupportsFloat
+from typing import SupportsFloat
 
 import cereal.messaging as messaging
 
@@ -63,7 +63,7 @@ ENABLED_STATES = (State.preEnabled, *ACTIVE_STATES)
 
 class CarD:
   CI: CarInterfaceBase
-  CS: Any
+  CS: car.CarState
 
   def __init__(self, CI=None):
     self.can_sock = messaging.sub_sock('can', timeout=20)
@@ -90,7 +90,7 @@ class CarD:
     """Initialize CarInterface, once controls are ready"""
     self.CI.init(self.CP, self.can_sock, self.pm.sock['sendcan'])
 
-  def state_update(self, CC: Any):
+  def state_update(self, CC: car.CarControl):
     """carState update loop, driven by can"""
 
     # TODO: This should not depend on carControl
@@ -136,7 +136,7 @@ class CarD:
       cp_send.carParams = self.CP
       self.pm.send('carParams', cp_send)
 
-  def controls_update(self, CC: Any):
+  def controls_update(self, CC: car.CarControl):
     """control update loop, driven by carControl"""
 
     # send car controls over can
