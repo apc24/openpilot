@@ -29,6 +29,7 @@ from openpilot.selfdrive.modeld.models.commonmodel_pyx import ModelFrame, CLCont
 PROCESS_NAME = "selfdrive.modeld.modeld"
 SEND_RAW_PRED = os.getenv('SEND_RAW_PRED')
 USE_E2E_CURV = os.getenv('USE_E2E_CURV', '1') == '1'
+E2E_OUTPUT_ADDR = os.getenv('E2E_OUTPUT_ADDR', '192.168.1.2')
 
 MODEL_PATHS = {
   ModelRunner.THNEED: Path(__file__).parent / 'models/supercombo.thneed',
@@ -174,7 +175,7 @@ def main(demo=False):
   pm = PubMaster(["modelV2", "cameraOdometry"])
   e2e_pm = PubMaster(["e2eOutput"])
   sm = SubMaster(["carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "navModel", "navInstruction", "carControl"])
-  sm_from_pc = SubMaster(["e2eOutput"],addr="192.168.1.2")
+  sm_from_pc = SubMaster(["e2eOutput"], addr=E2E_OUTPUT_ADDR)
 
   publish_state = PublishState()
   params = Params()
