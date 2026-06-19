@@ -173,7 +173,7 @@ def main(demo=False):
 
   # messaging
   pm = PubMaster(["modelV2", "cameraOdometry"])
-  e2e_pm = PubMaster(["e2eOutput"])
+  # e2e_pm = PubMaster(["e2eOutput"])
   sm = SubMaster(["carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "navModel", "navInstruction", "carControl"])
   sm_from_pc = SubMaster(["e2eOutput"], addr=E2E_OUTPUT_ADDR)
 
@@ -254,10 +254,10 @@ def main(demo=False):
       model_transform_main = get_warp_matrix(device_from_calib_euler, main_wide_camera, False).astype(np.float32)
       model_transform_extra = get_warp_matrix(device_from_calib_euler, True, True).astype(np.float32)
       live_calib_seen = True
-    if sm_from_pc.updated['e2eOutput']:
-      e2e_output_send =messaging.new_message('e2eOutput', valid=sm_from_pc.valid['e2eOutput'])
-      e2e_output_send.e2eOutput = sm_from_pc['e2eOutput']
-      e2e_pm.send('e2eOutput', e2e_output_send)
+    # if sm_from_pc.updated['e2eOutput']:
+    #   e2e_output_send =messaging.new_message('e2eOutput', valid=sm_from_pc.valid['e2eOutput'])
+    #   e2e_output_send.e2eOutput = sm_from_pc['e2eOutput']
+    #   e2e_pm.send('e2eOutput', e2e_output_send)
 
     traffic_convention = np.zeros(2)
     traffic_convention[int(is_rhd)] = 1
