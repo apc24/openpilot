@@ -175,7 +175,7 @@ def main(demo=False):
   pm = PubMaster(["modelV2", "cameraOdometry"])
   # e2e_pm = PubMaster(["e2eOutput"])
   sm = SubMaster(["carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "navModel", "navInstruction", "carControl"])
-  sm_from_pc = SubMaster(["e2eOutput"], addr=E2E_OUTPUT_ADDR)
+  sm_from_pc = SubMaster(["e2eOutput"],addr="192.168.1.2")
 
   publish_state = PublishState()
   params = Params()
