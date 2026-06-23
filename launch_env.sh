@@ -8,6 +8,7 @@ export VECLIB_MAXIMUM_THREADS=1
 export MAPTILER_TOKEN=""
 export MAPBOX_TOKEN=""
 export ZMQ=1
+export E2E_OUTPUT_ADDR="${E2E_OUTPUT_ADDR:-192.168.1.2}"
 
 
 if [ -z "$AGNOS_VERSION" ]; then
