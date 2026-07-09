@@ -118,7 +118,7 @@ class ModelState:
     return outputs
 
 
-def get_e2e_desired_curvature(sm_from_pc: SubMaster, vm: VehicleModel, fallback_speed: float) -> Optional[float]:
+def get_e2e_desired_curvature(sm_from_pc: SubMaster, vm: VehicleModel, vEgo: float, current_steering_angle: float) -> Optional[float]:
   if sm_from_pc.recv_frame['e2eOutput'] < 0:
     return None
 
@@ -127,9 +127,9 @@ def get_e2e_desired_curvature(sm_from_pc: SubMaster, vm: VehicleModel, fallback_
   if age > 0.5 or not sm_from_pc.valid['e2eOutput'] or not e2e_output.isValid:
     return None
 
-  speed = max(float(e2e_output.vEgo), fallback_speed, 0.1)
-  steering_angle_rad = math.radians(float(e2e_output.steeringAngleDeg))
-  return float(-vm.calc_curvature(steering_angle_rad, speed, 0.0))
+  speed = max(vEgo, 0.1)
+  target_steering_angle_rad = math.radians((current_steering_angle + e2e_output.steeringAngleDeg) / 2.0)
+  return float(-vm.calc_curvature(target_steering_angle_rad, speed, 0.0))
 
 
 def main(demo=False):
@@ -311,7 +311,9 @@ def main(demo=False):
 
     if model_output is not None:
       if USE_E2E_CURV:
-        e2e_desired_curvature = get_e2e_desired_curvature(sm_from_pc, VM, float(sm['carState'].vEgo))
+        vEgo = float(sm['carState'].vEgo)
+        steer_angle = float(sm['carState'].steeringAngleDeg)
+        e2e_desired_curvature = get_e2e_desired_curvature(sm_from_pc, VM, vEgo, steer_angle)
       else:
         e2e_desired_curvature = None
       use_e2eoutput = 1 if e2e_desired_curvature is not None else 0
