@@ -124,6 +124,10 @@ def get_e2e_desired_curvature(sm_from_pc: SubMaster, vm: VehicleModel, vEgo: flo
 
   e2e_output = sm_from_pc['e2eOutput']
   age = (sm_from_pc.frame - sm_from_pc.recv_frame['e2eOutput']) / ModelConstants.MODEL_FREQ
+  # stale = age > 0.5
+  # if stale and not getattr(get_e2e_desired_curvature, '_was_stale', False):
+  #   cloudlog.warning(f"e2eOutput stale: age={age:.3f}s (>0.5s)")
+  # get_e2e_desired_curvature._was_stale = stale
   if age > 0.5 or not sm_from_pc.valid['e2eOutput'] or not e2e_output.isValid:
     return None
 
@@ -173,7 +177,7 @@ def main(demo=False):
   # messaging
   pm = PubMaster(["modelV2", "cameraOdometry"])
   sm = SubMaster(["carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "navModel", "navInstruction", "carControl"])
-  sm_from_pc = SubMaster(["e2eOutput"],addr="192.168.1.2")
+  sm_from_pc = SubMaster(["e2eOutput"],addr="192.168.1.51")
 
   publish_state = PublishState()
   params = Params()
@@ -353,5 +357,5 @@ if __name__ == "__main__":
   except Exception:
     sentry.capture_exception()
     raise
-  
+
 

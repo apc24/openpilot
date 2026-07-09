@@ -383,7 +383,7 @@ def main(addr: str):
         buf_main = latest_main
         buf_extra = latest_extra
 
-        if abs(buf_main.timestamp_sof - buf_extra.timestamp_sof) > 50000000:
+        if abs(buf_main.timestamp_sof - buf_extra.timestamp_sof) > 100000000000:
             print(f"Frame timestamp mismatch: main {buf_main.timestamp_sof}, extra {buf_extra.timestamp_sof}")
             if buf_main.timestamp_sof > buf_extra.timestamp_sof:
                 latest_extra = None
