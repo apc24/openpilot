@@ -26,7 +26,6 @@ from openpilot.selfdrive.modeld.fill_model_msg import fill_model_msg, fill_pose_
 from openpilot.selfdrive.modeld.constants import ModelConstants
 from openpilot.selfdrive.modeld.models.commonmodel_pyx import ModelFrame, CLContext
 
-
 PROCESS_NAME = "selfdrive.modeld.modeld"
 SEND_RAW_PRED = os.getenv('SEND_RAW_PRED')
 USE_E2E_CURV = os.getenv('USE_E2E_CURV', '1') == '1'
@@ -178,7 +177,7 @@ def main(demo=False):
   # messaging
   pm = PubMaster(["modelV2", "cameraOdometry"])
   sm = SubMaster(["carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "navModel", "navInstruction", "carControl"])
-  sm_from_pc = SubMaster(["e2eOutput"],addr="192.168.1.51")
+  sm_from_pc = SubMaster(["e2eOutput"],addr="192.168.1.2")
 
   publish_state = PublishState()
   params = Params()
