@@ -1,5 +1,7 @@
 #!/usr/bin/bash
 
+nmcli radio wifi off
+
 if [ -z "$BASEDIR" ]; then
   BASEDIR="/data/openpilot"
 fi
