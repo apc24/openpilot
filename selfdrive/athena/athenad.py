@@ -141,7 +141,7 @@ def handle_long_poll(ws: WebSocket, exit_event: Optional[threading.Event]) -> No
     threading.Thread(target=ws_manage, args=(ws, end_event), name='ws_manage'),
     threading.Thread(target=ws_recv, args=(ws, end_event), name='ws_recv'),
     threading.Thread(target=ws_send, args=(ws, end_event), name='ws_send'),
-    threading.Thread(target=upload_handler, args=(end_event,), name='upload_handler'),
+#    threading.Thread(target=upload_handler, args=(end_event,), name='upload_handler'),  disable upload by sakayanagi
     threading.Thread(target=log_handler, args=(end_event,), name='log_handler'),
     threading.Thread(target=stat_handler, args=(end_event,), name='stat_handler'),
   ] + [
@@ -217,6 +217,7 @@ def cb(sm, item, tid, sz: int, cur: int) -> None:
 
 
 def upload_handler(end_event: threading.Event) -> None:
+  
   sm = messaging.SubMaster(['deviceState'])
   tid = threading.get_ident()
 
@@ -372,6 +373,8 @@ def uploadFileToUrl(fn: str, url: str, headers: Dict[str, str]) -> UploadFilesTo
 
 @dispatcher.add_method
 def uploadFilesToUrls(files_data: List[UploadFileDict]) -> UploadFilesToUrlResponse:
+  return {"enqueued": 0, "items": []} #upload無効化
+
   files = map(UploadFile.from_dict, files_data)
 
   items: List[UploadItemDict] = []
@@ -767,7 +770,8 @@ def main(exit_event: Optional[threading.Event] = None):
 
   params = Params()
   dongle_id = params.get("DongleId", encoding='utf-8')
-  UploadQueueCache.initialize(upload_queue)
+#  UploadQueueCache.initialize(upload_queue) delete upload queue by sakayanagi
+  params.put("AthenadUploadQueue", "[]") # delete upload queue by sakayanagi
 
   ws_uri = ATHENA_HOST + "/ws/v2/" + dongle_id
   api = Api(dongle_id)
