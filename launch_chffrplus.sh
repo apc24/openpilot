@@ -1,5 +1,8 @@
 #!/usr/bin/bash
 
+# stop wifi and LTE
+nmcli radio all off
+
 if [ -z "$BASEDIR" ]; then
   BASEDIR="/data/openpilot"
 fi
